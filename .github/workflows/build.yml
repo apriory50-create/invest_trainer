@@ -21,10 +21,10 @@ jobs:
       - name: Build APK safely
         shell: bash
         run: |
-          cp lib/main.dart main.bak
+          cp -r lib lib_bak
           cp pubspec.yaml pubspec.bak
           flutter create --project-name invest_trainer --org com.invest.trainer .
-          cp main.bak lib/main.dart
+          cp -r lib_bak/* lib/
           cp pubspec.bak pubspec.yaml
           flutter pub get
           flutter build apk --debug
@@ -45,11 +45,11 @@ jobs:
       - name: Build Windows EXE safely
         shell: bash
         run: |
-          cp lib/main.dart main.bak
+          cp -r lib lib_bak
           cp pubspec.yaml pubspec.bak
           flutter config --enable-windows-desktop
           flutter create --project-name invest_trainer .
-          cp main.bak lib/main.dart
+          cp -r lib_bak/* lib/
           cp pubspec.bak pubspec.yaml
           flutter pub get
           flutter build windows --release
@@ -58,5 +58,6 @@ jobs:
         with:
           name: InvestTrainer-Windows-EXE
           path: build/windows/x64/runner/Release/
+
 
 
