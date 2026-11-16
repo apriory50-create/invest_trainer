@@ -1,407 +1,230 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'lessons_data.dart';
+import 'academy_data.dart';
 
 void main() => runApp(const InvestApp());
 
 class InvestApp extends StatefulWidget {
   const InvestApp({super.key});
   @override
-  State createState() => _InvestAppState();
+  State<InvestApp> createState() => _InvestAppState();
 }
 
-class _InvestAppState extends State {
-  bool isPro = false;
-  int themeIdx = 0;
-  int tabIdx = 0;
-  int selectedStage = 1; // 1..5 (по 20 уроков)
-  String searchQuery = '';
-  double virtualBal = 100000.0;
-  List doneLessons = [];
-  List mistakes = ['15.11.2026 | Газпром: Покупка под дивы без учёта дивгэпа (-4200 ₽)'];
-  List portfolio = [
-    {'t': 'SU26238', 'n': 'ОФЗ 26238', 'type': 'bond', 'q': 50, 'p': 502.0, 'd': 7.8},
-    {'t': 'SBER', 'n': 'Сбербанк', 'type': 'stock', 'q': 100, 'p': 265.0, 'd': 0.0},
-    {'t': 'LQDT', 'n': 'Фонд Ликвидность', 'type': 'etf', 'q': 10000, 'p': 1.58, 'd': 0.1},
-  ];
+class _InvestAppState extends State<InvestApp> {
+  int _themeIndex = 0; // 0: Тёмная, 1: Светлая, 2: Изумрудная
+  bool _isPro = false;
+  int _tab = 0;
+  final Set<int> _doneLessons = {};
+  double _keyRate = 21.0;
+  double _bondPrice = 820.0;
+  double _coupon = 120.0;
+  double _crashPercent = 0.0;
 
-  double daysSlider = 45.0;
-  double durSlider = 5.0;
-  List filters = [false, false, false, false];
-
-  List prices = [100.0, 102.0, 99.0, 95.0, 91.0];
-  double? entryP;
-  int simQty = 0;
-  Timer? timer;
-  String simNews = 'Рынок спокоен. Нажмите Шаг +1 день или Таймлапс.';
-
-  double stressDelta = 0.0;
-  double topUp = 30000.0;
-  final newsCtrl = TextEditingController(text: 'ЦБ повысил ставку, Сбербанк объявил рекордные дивиденды');
-  final backupCtrl = TextEditingController();
-  String radarOut = 'Нажмите кнопку ниже для рентгена новости.';
-
-  void nextSimStep() {
-    setState(() {
-      final last = (prices.last as num).toDouble();
-      final delta = (Random().nextDouble() - 0.48) * 6.0;
-      final next = (last + delta).clamp(30.0, 200.0);
-      prices.add(next);
-      if (prices.length % 4 == 0) {
-        timer?.cancel();
-        timer = null;
-        simNews = (next - last).isNegative
-            ? '⚡ АВТО-ПАУЗА: ЦБ жёстко поднял ставку! Ожидание: пауза | Реальность: негатив'
-            : '⚡ АВТО-ПАУЗА: Вышел сильный отчёт! Ожидание: спад | Реальность: рекордные дивы';
-      }
-    });
+  ThemeData _buildTheme() {
+    if (_themeIndex == 1) {
+      return ThemeData.light(useMaterial3: true).copyWith(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+      );
+    }
+    final bg = _themeIndex == 2 ? const Color(0xFF071E18) : const Color(0xFF0F172A);
+    final card = _themeIndex == 2 ? const Color(0xFF0E2F26) : const Color(0xFF1E293B);
+    final seed = _themeIndex == 2 ? Colors.tealAccent : Colors.indigoAccent;
+    return ThemeData.dark(useMaterial3: true).copyWith(
+      scaffoldBackgroundColor: bg,
+      cardTheme: CardThemeData(color: card),
+      colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = themeIdx == 1
-        ? ThemeData.light(useMaterial3: true)
-        : ThemeData.dark(useMaterial3: true).copyWith(scaffoldBackgroundColor: themeIdx == 2 ? Colors.black : null);
-
+    final pages = [_buildAcademy(), _buildRadar(), _buildSimulator(), _buildPortfolio()];
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: theme,
-      home: Builder(
-        builder: (ctx) => Scaffold(
-          appBar: AppBar(
-            title: Text('Академия: ${doneLessons.length}/100'),
-            actions: [
-              TextButton(
-                onPressed: () => setState(() => isPro = !isPro),
-                child: Text(isPro ? '⚡ ПРОФИ' : '🌱 НА ПАЛЬЦАХ'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.help_outline),
-                onPressed: () => showModalBottomSheet(
-                  context: ctx,
-                  builder: (_) => ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: const [
-                      Text('📖 Быстрый словарь на пальцах', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ListTile(title: Text('НКД'), subtitle: Text('Копейки купона за каждый день, которые покупатель возвращает продавцу.')),
-                      ListTile(title: Text('Дюрация'), subtitle: Text('На сколько % упадёт облигация, если ЦБ поднимет ставку на 1%.')),
-                      ListTile(title: Text('Оферта'), subtitle: Text('Опасная дата, когда купон облигации могут сбросить до 0.01%!')),
-                      ListTile(title: Text('Дивгэп'), subtitle: Text('Утреннее падение акции ровно на сумму выплаченного дивиденда.')),
-                      ListTile(title: Text('ГО'), subtitle: Text('Залог (10–20%) при покупке фьючерса. Опасно брать на весь счёт!')),
-                    ],
-                  ),
-                ),
-              ),
-              IconButton(icon: const Icon(Icons.palette_outlined), onPressed: () => setState(() => themeIdx = (themeIdx + 1) % 3)),
-            ],
-          ),
-          body: [buildAcademy(), buildSim(), buildPortfolio(), buildRadar()][tabIdx],
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: tabIdx,
-            onDestinationSelected: (i) => setState(() => tabIdx = i),
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.school_outlined), label: '100 Уроков'),
-              NavigationDestination(icon: Icon(Icons.candlestick_chart_outlined), label: 'Тренажер'),
-              NavigationDestination(icon: Icon(Icons.pie_chart_outline), label: 'Портфель'),
-              NavigationDestination(icon: Icon(Icons.radar_outlined), label: 'Инфо-Радар'),
-            ],
-          ),
+      title: 'Invest Trainer',
+      theme: _buildTheme(),
+      home: Scaffold(
+        appBar: AppBar(
+          title: Text(_isPro ? 'INVEST PRO' : 'Инвестор с нуля'),
+          actions: [
+            Row(
+              children: [
+                Text(_isPro ? 'ПРОФИ' : 'НОВИЧОК', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                Switch(value: _isPro, onChanged: (v) => setState(() => _isPro = v)),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.palette_outlined),
+              onPressed: () => setState(() => _themeIndex = (_themeIndex + 1) % 3),
+            ),
+          ],
+        ),
+        body: pages[_tab],
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _tab,
+          onDestinationSelected: (i) => setState(() => _tab = i),
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.school_outlined), label: 'Академия'),
+            NavigationDestination(icon: Icon(Icons.radar), label: 'MOEX Радар'),
+            NavigationDestination(icon: Icon(Icons.calculate_outlined), label: 'Тренажер'),
+            NavigationDestination(icon: Icon(Icons.pie_chart_outline), label: 'Портфель'),
+          ],
         ),
       ),
     );
   }
 
-  Widget buildAcademy() {
-    final nkd = 1000 * 0.12 / 365 * daysSlider;
-    final drop = -(durSlider * 2.0);
-    final stageNames = [
-      '1. Азы и ОФЗ (1-20)',
-      '2. Ставка и Оферта (21-40)',
-      '3. Акции и БПИФ (41-60)',
-      '4. Фьючерсы и ГО (61-80)',
-      '5. Опционы и Профи (81-100)',
-    ];
-
-    final filtered = all100Lessons.where((raw) {
-      final item = raw as List;
-      if (searchQuery.isNotEmpty) {
-        final q = searchQuery.toLowerCase();
-        return item[2].toString().toLowerCase().contains(q) || item[3].toString().toLowerCase().contains(q);
-      }
-      return item[1] == selectedStage;
-    }).toList();
-
+  Widget _buildAcademy() {
+    final progress = academyLessons.isEmpty ? 0.0 : _doneLessons.length / academyLessons.length;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('📊 Прогресс обучения: пройдено ${doneLessons.length} из 100 уроков', style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                LinearProgressIndicator(value: doneLessons.length / 100.0, minHeight: 8),
-                const SizedBox(height: 10),
-                Text('🎛 Тренажер НКД и Дюрации: Дней ${daysSlider.toInt()} -> НКД: ${nkd.toStringAsFixed(1)} ₽ | Дюрация ${durSlider.toStringAsFixed(1)} -> Цена при росте ставки +2%: ${drop.toStringAsFixed(1)}%'),
-                Slider(value: daysSlider, min: 0, max: 182, onChanged: (v) => setState(() => daysSlider = v)),
-                Slider(value: durSlider, min: 1, max: 10, onChanged: (v) => setState(() => durSlider = v)),
+                Text('Пройдено уроков: ${_doneLessons.length} из ${academyLessons.length}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(value: progress, minHeight: 8, borderRadius: BorderRadius.circular(4)),
               ],
             ),
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search),
-            labelText: 'Поиск по всем 100 урокам (например: оферта, дивгэп, шорт)',
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (v) => setState(() => searchQuery = v.trim()),
-        ),
-        const SizedBox(height: 8),
-        if (searchQuery.isEmpty)
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: List.generate(5, (idx) {
-              final stNum = idx + 1;
-              final active = selectedStage == stNum;
-              return ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: active ? Colors.amber.shade800 : null,
-                  foregroundColor: active ? Colors.white : null,
-                ),
-                onPressed: () => setState(() => selectedStage = stNum),
-                child: Text(stageNames[idx]),
-              );
-            }),
-          ),
-        const SizedBox(height: 8),
-        ...filtered.map((raw) {
-          final l = raw as List;
-          final numId = l[0];
-          final title = l[2].toString();
-          final simpleText = l[3].toString();
-          final proText = l[4].toString();
-          final isDone = doneLessons.contains(numId);
-
+        ...academyLessons.map((lesson) {
+          final isDone = _doneLessons.contains(lesson.id);
           return Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: isDone ? Colors.green : Colors.blueGrey,
-                        child: Text('$numId', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                      ElevatedButton(
-                        onPressed: () => setState(() {
-                          if (isDone) {
-                            doneLessons.remove(numId);
-                          } else {
-                            doneLessons.add(numId);
-                          }
-                        }),
-                        child: Text(isDone ? '✅ Сдано' : 'Понял!'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('🌱 На пальцах: $simpleText', style: const TextStyle(fontSize: 14.5)),
-                  if (isPro) ...[
-                    const Divider(height: 14),
-                    Text('⚡ На языке профи: $proText', style: const TextStyle(fontSize: 13, color: Colors.amberAccent)),
-                  ],
-                ],
+            child: ExpansionTile(
+              leading: Icon(
+                isDone ? Icons.check_circle : Icons.play_circle_outline,
+                color: isDone ? Colors.greenAccent : Colors.amberAccent,
               ),
+              title: Text(lesson.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(lesson.category, style: const TextStyle(fontSize: 12)),
+              childrenPadding: const EdgeInsets.all(14),
+              children: [
+                Text(_isPro ? lesson.proText : lesson.simpleText, style: const TextStyle(fontSize: 15, height: 1.4)),
+                const Divider(height: 24),
+                Text('Проверка: ${lesson.question}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ...List.generate(lesson.options.length, (idx) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(42), alignment: Alignment.centerLeft),
+                      onPressed: () {
+                        final ok = idx == lesson.correctIndex;
+                        if (ok) setState(() => _doneLessons.add(lesson.id));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(ok ? 'Верно! Урок засчитан.' : 'Попробуй еще раз — перечитай подсказку выше.'),
+                            backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: Text(lesson.options[idx]),
+                    ),
+                  );
+                }),
+              ],
             ),
           );
         }),
-        Card(
-          child: Column(
-            children: [
-              const Padding(padding: EdgeInsets.all(8), child: Text('🛡 4 Фильтра Профи и 📓 Дневник граблей', style: TextStyle(fontWeight: FontWeight.bold))),
-              CheckboxListTile(value: filters[0] as bool, onChanged: (v) => setState(() => filters[0] = v ?? false), title: const Text('1. Понятен источник дохода и проверена дата оферты')),
-              CheckboxListTile(value: filters[1] as bool, onChanged: (v) => setState(() => filters[1] = v ?? false), title: const Text('2. Учтена комиссия, налог 13% и известна точка выхода')),
-              ...mistakes.map((m) => ListTile(dense: true, leading: const Icon(Icons.warning, color: Colors.orange), title: Text(m.toString()))),
-            ],
-          ),
-        ),
       ],
     );
   }
 
-  Widget buildSim() {
-    final curr = (prices.last as num).toDouble();
-    final breakEven = entryP == null ? null : entryP! * 1.008;
-    final rawPnl = entryP == null ? 0.0 : (curr - entryP!) * simQty;
-    final netPnl = rawPnl - (rawPnl.isNegative ? 0.0 : rawPnl * 0.13) - ((entryP ?? 0) * simQty * 0.003);
-    final isDanger = (curr - (entryP ?? curr) * 0.93).isNegative || simNews.contains('негатив');
-
-    return ListView(
+  Widget _buildRadar() {
+    final items = [
+      ('SBER', 'Сбербанк', 'Акция', '285 ₽', '+1.4%', 'Финансовый гигант с высокими дивидендами'),
+      ('LKOH', 'Лукойл', 'Акция', '7150 ₽', '+0.8%', 'Экспортер нефти, выигрывает от слабого рубля'),
+      ('SU26238', 'ОФЗ 26238', 'Облигация', '520 ₽', '-0.3%', 'Длинная госбумага для фиксации ставок на годы'),
+      ('SU29025', 'ОФЗ-ПК 29025', 'Флоатер', '985 ₽', '+0.1%', 'Купон плывет за ставкой ЦБ, защита от шторма'),
+      ('LQDT', 'Фонд Ликвидности', 'БПИФ', '1.54 ₽', '+0.06%', 'Ежедневный доход под ставку ЦБ без просадок'),
+    ];
+    return ListView.builder(
       padding: const EdgeInsets.all(12),
-      children: [
-        Card(color: Colors.amber.withValues(alpha: 0.15), child: Padding(padding: const EdgeInsets.all(10), child: Text(simNews))),
-        const SizedBox(height: 8),
-        Container(
-          height: 140,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)),
-          child: CustomPaint(painter: SimpleChart(prices), size: Size.infinite),
-        ),
-        const SizedBox(height: 8),
-        Text('Цена: ${curr.toStringAsFixed(2)} ₽ | Безубыток: ${breakEven?.toStringAsFixed(2) ?? "-"} ₽ | Чистыми: ${netPnl.toStringAsFixed(1)} ₽', style: const TextStyle(fontWeight: FontWeight.bold)),
-        Wrap(
-          spacing: 8,
-          children: [
-            ElevatedButton(onPressed: nextSimStep, child: const Text('Шаг +1 день')),
-            ElevatedButton(
-              onPressed: () => setState(() {
-                if (timer != null) {
-                  timer?.cancel();
-                  timer = null;
-                } else {
-                  timer = Timer.periodic(const Duration(milliseconds: 800), (_) => nextSimStep());
-                }
-              }),
-              child: Text(timer != null ? 'Пауза' : 'Таймлапс'),
-            ),
-            ElevatedButton(onPressed: () => setState(() { entryP = curr; simQty = 100; }), child: const Text('Купить 100 шт')),
-            ElevatedButton(
-              onPressed: simQty == 0 ? null : () => setState(() {
-                if (netPnl.isNegative) mistakes.insert(0, 'Тренажер: Продажа в минус (${netPnl.toStringAsFixed(0)} ₽)');
-                virtualBal += netPnl;
-                entryP = null;
-                simQty = 0;
-              }),
-              child: const Text('Закрыть'),
-            ),
-          ],
-        ),
-        Card(
+      itemCount: items.length,
+      itemBuilder: (c, i) {
+        final it = items[i];
+        return Card(
           child: ListTile(
-            leading: Icon(Icons.circle, color: isDanger ? Colors.red : Colors.green),
-            title: Text(isDanger ? '🚦 КРАСНЫЙ: Сработал сигнал выхода!' : '🚦 ЗЕЛЕНЫЙ: 5 сигналов в норме, держим'),
-            subtitle: Text('Виртуальный счёт: ${virtualBal.toStringAsFixed(0)} ₽'),
+            title: Text('${it.$2} (${it.$1})', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('${it.$3} • ${it.$6}'),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(it.$4, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(it.$5, style: TextStyle(color: it.$5.startsWith('+') ? Colors.greenAccent : Colors.redAccent)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSimulator() {
+    final currentYield = (_coupon / _bondPrice) * 100;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Калькулятор ОФЗ и Ставки ЦБ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Text('Ключевая ставка ЦБ: ${_keyRate.toStringAsFixed(1)}%'),
+                Slider(value: _keyRate, min: 5, max: 25, onChanged: (v) => setState(() => _keyRate = v)),
+                Text('Цена покупки облигации: ${_bondPrice.toStringAsFixed(0)} ₽ (Номинал 1000 ₽)'),
+                Slider(value: _bondPrice, min: 500, max: 1100, onChanged: (v) => setState(() => _bondPrice = v)),
+                Text('Годовой купон: ${_coupon.toStringAsFixed(0)} ₽'),
+                Slider(value: _coupon, min: 50, max: 220, onChanged: (v) => setState(() => _coupon = v)),
+                const Divider(),
+                Text('Твоя купонная доходность: ${currentYield.toStringAsFixed(2)}% годовых',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
+                const SizedBox(height: 6),
+                Text('При погашении государство вернет 1000 ₽. Твой бонус к телу: ${(1000 - _bondPrice).toStringAsFixed(0)} ₽.'),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget buildPortfolio() {
-    double total = 0, stressed = 0, stocks = 0;
-    for (var raw in portfolio) {
-      final a = raw as Map;
-      final v = (a['q'] as int) * (a['p'] as double);
-      total += v;
-      if (a['type'] == 'stock') stocks += v;
-      final drop = a['type'] == 'stock' ? (-stressDelta * 2.2) : (-(a['d'] as double) * stressDelta);
-      stressed += v * (1 + drop / 100);
-    }
-    final beforePct = total == 0 ? 0.0 : (stocks / total * 100);
-    final afterPct = (total + topUp) == 0 ? 0.0 : (stocks / (total + topUp) * 100);
-
+  Widget _buildPortfolio() {
+    const double baseCapital = 100000;
+    final stocks = 40000 * (1 - _crashPercent / 100);
+    const bonds = 40000.0;
+    const cash = 20000.0;
+    final total = stocks + bonds + cash;
     return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        ElevatedButton(
-          onPressed: () => setState(() => portfolio.add({'t': 'LKOH', 'n': 'Лукойл (Импорт)', 'type': 'stock', 'q': 10, 'p': 7100.0, 'd': 0.0})),
-          child: const Text('📥 Импорт: Скриншот / Файл / API / Вручную (+LKOH)'),
-        ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('🩺 Стресс-тест ставки ЦБ (${stressDelta.toStringAsFixed(1)}%): ${total.toStringAsFixed(0)} ₽ -> ${stressed.toStringAsFixed(0)} ₽'),
-                Slider(value: stressDelta, min: -5, max: 5, onChanged: (v) => setState(() => stressDelta = v)),
-                Text('⚖️ Ребалансировка без налогов (+${topUp.toStringAsFixed(0)} ₽ в бонды): Акции ДО ${beforePct.toStringAsFixed(1)}% -> ПОСЛЕ ${afterPct.toStringAsFixed(1)}%'),
-                Slider(value: topUp, min: 10000, max: 150000, onChanged: (v) => setState(() => topUp = v)),
-              ],
-            ),
-          ),
-        ),
-        ...portfolio.map((raw) {
-          final a = raw as Map;
-          return Card(child: ListTile(title: Text('${a['n']} (${a['t']})'), subtitle: Text('${a['q']} шт по ${a['p']} ₽ | Дюрация: ${a['d']}')));
-        }),
-      ],
-    );
-  }
-
-  Widget buildRadar() {
-    return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       children: [
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('📡 Двухуровневый Инфо-Радар', style: TextStyle(fontWeight: FontWeight.bold)),
-                TextField(controller: newsCtrl, maxLines: 2),
+                const Text('Стресс-тест портфеля (100 000 ₽)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                Text('Обвал рынка акций: -${_crashPercent.toStringAsFixed(0)}%'),
+                Slider(value: _crashPercent, min: 0, max: 50, onChanged: (v) => setState(() => _crashPercent = v)),
+                Text('Итого капитал в шторм: ${total.toStringAsFixed(0)} ₽ из ${baseCapital.toStringAsFixed(0)} ₽',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () => setState(() {
-                    final t = newsCtrl.text.toLowerCase();
-                    radarOut = '${t.contains('ставк') ? '🔴 Ставка ЦБ: Риск для длинных ОФЗ 26238, плюс для LQDT.\n' : ''}${t.contains('дивиденд') ? '🟢 Дивиденды: Плюс для SBER, учтите дивгэп и НДФЛ 13%.' : ''}';
-                    if (radarOut.isEmpty) radarOut = '🟡 Нейтральный шум.';
-                  }),
-                  child: const Text('Просветить новость рентгеном'),
-                ),
-                const SizedBox(height: 8),
-                Text(radarOut),
-              ],
-            ),
-          ),
-        ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                const Text('☁️ Бэкап (JSON + Telegram Bot API)', style: TextStyle(fontWeight: FontWeight.bold)),
-                TextField(controller: backupCtrl, decoration: const InputDecoration(labelText: 'JSON строка бэкапа')),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        final j = jsonEncode({'bal': virtualBal, 'port': portfolio, 'mistakes': mistakes, 'done': doneLessons});
-                        backupCtrl.text = j;
-                        Clipboard.setData(ClipboardData(text: j));
-                      },
-                      child: const Text('Экспорт JSON'),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () {
-                        try {
-                          final d = jsonDecode(backupCtrl.text);
-                          setState(() {
-                            virtualBal = ((d['bal'] ?? 100000) as num).toDouble();
-                            doneLessons = (d['done'] as List? ?? []);
-                          });
-                        } catch (_) {}
-                      },
-                      child: const Text('Импорт JSON'),
-                    ),
-                  ],
-                ),
+                Text(_isPro
+                    ? 'Защитная аллокация (60% бонды + кэш) удерживает просадку портфеля в пределах ${(100 - total / baseCapital * 100).toStringAsFixed(1)}% и дает ликвидность для ребалансировки.'
+                    : 'Даже если акции упали на ${_crashPercent.toStringAsFixed(0)}%, твои облигации и подушка держат удар! Ты можешь спокойно докупить подешевевшие акции на распродаже.'),
               ],
             ),
           ),
@@ -411,26 +234,6 @@ class _InvestAppState extends State {
   }
 }
 
-class SimpleChart extends CustomPainter {
-  final List p;
-  SimpleChart(this.p);
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (p.length == 1) return;
-    final list = p.map((e) => (e as num).toDouble()).toList();
-    final minV = list.reduce(min) - 5, maxV = list.reduce(max) + 5;
-    final path = Path();
-    for (int i = 0; i != list.length; i++) {
-      final x = i * (size.width / (list.length - 1));
-      final y = size.height - ((list[i] - minV) / (maxV - minV)) * size.height;
-      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
-    }
-    canvas.drawPath(path, Paint()..color = Colors.lightBlueAccent..strokeWidth = 2.5..style = PaintingStyle.stroke);
-  }
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-// КОНЕЦ ФАЙЛА
 
 
 
