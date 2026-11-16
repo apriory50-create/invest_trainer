@@ -2,20 +2,72 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 
+class MistakeItem {
+  final String date;
+  final String asset;
+  final String error;
+  final double loss;
+  MistakeItem(this.date, this.asset, this.error, this.loss);
+
+  Map toJson() => {'date': date, 'asset': asset, 'error': error, 'loss': loss};
+  static MistakeItem fromJson(dynamic m) => MistakeItem(
+        (m['date'] ?? 'Сегодня').toString(),
+        (m['asset'] ?? '').toString(),
+        (m['error'] ?? '').toString(),
+        ((m['loss'] ?? 0) as num).toDouble(),
+      );
+}
+
+class AssetItem {
+  final String ticker;
+  final String name;
+  final String type;
+  final int qty;
+  final double buyPrice;
+  final double currPrice;
+  final double duration;
+  final double coupon;
+
+  AssetItem(this.ticker, this.name, this.type, this.qty, this.buyPrice, this.currPrice, this.duration, this.coupon);
+
+  Map toJson() => {
+        'ticker': ticker,
+        'name': name,
+        'type': type,
+        'qty': qty,
+        'buyPrice': buyPrice,
+        'currPrice': currPrice,
+        'duration': duration,
+        'coupon': coupon,
+      };
+
+  static AssetItem fromJson(dynamic m) => AssetItem(
+        (m['ticker'] ?? '').toString(),
+        (m['name'] ?? '').toString(),
+        (m['type'] ?? 'stock').toString(),
+        ((m['qty'] ?? 1) as num).toInt(),
+        ((m['buyPrice'] ?? 100) as num).toDouble(),
+        ((m['currPrice'] ?? 100) as num).toDouble(),
+        ((m['duration'] ?? 0) as num).toDouble(),
+        ((m['coupon'] ?? 0) as num).toDouble(),
+      );
+}
+
 class AppState extends ChangeNotifier {
   bool isProMode = false;
-  int themeIndex = 0; // 0: Dark, 1: Light, 2: OLED
+  int themeIndex = 0;
   double cbRate = 21.0;
   double virtualBalance = 100000.0;
-  List<String>completedLessons = [];
-  List> mistakeDiary = [
-    {'date': '15.11.2026', 'asset': 'Газпром', 'error': 'Покупка под дивиденды без учёта дивгэпа и налога 13%', 'loss': -4200}
+  List completedLessons = [];
+
+  List mistakeDiary = [
+    MistakeItem('15.11.2026', 'Газпром', 'Покупка под дивиденды без учёта дивгэпа и налога 13%', -4200.0),
   ];
 
-  List> portfolio = [
-    {'ticker': 'SU26238', 'name': 'ОФЗ 26238', 'type': 'bond', 'qty': 50, 'buyPrice': 510.0, 'currPrice': 502.0, 'duration': 7.8, 'coupon': 7.1},
-    {'ticker': 'SBER', 'name': 'Сбербанк', 'type': 'stock', 'qty': 100, 'buyPrice': 240.0, 'currPrice': 265.0, 'duration': 0.0, 'coupon': 12.5},
-    {'ticker': 'LQDT', 'name': 'Фонд Ликвидность', 'type': 'etf', 'qty': 10000, 'buyPrice': 1.45, 'currPrice': 1.58, 'duration': 0.1, 'coupon': 20.5},
+  List portfolio = [
+    AssetItem('SU26238', 'ОФЗ 26238', 'bond', 50, 510.0, 502.0, 7.8, 7.1),
+    AssetItem('SBER', 'Сбербанк', 'stock', 100, 240.0, 265.0, 0.0, 12.5),
+    AssetItem('LQDT', 'Фонд Ликвидность', 'etf', 10000, 1.45, 1.58, 0.1, 20.5),
   ];
 
   void toggleProMode() {
@@ -34,12 +86,12 @@ class AppState extends ChangeNotifier {
   }
 
   void addMistake(String asset, String error, double loss) {
-    mistakeDiary.insert(0, {'date': 'Сегодня', 'asset': asset, 'error': error, 'loss': loss});
+    mistakeDiary.insert(0, MistakeItem('Сегодня', asset, error, loss));
     notifyListeners();
   }
 
   void addAsset(String ticker, String name, String type, int qty, double price, double dur) {
-    portfolio.add({'ticker': ticker, 'name': name, 'type': type, 'qty': qty, 'buyPrice': price, 'currPrice': price, 'duration': dur, 'coupon': 15.0});
+    portfolio.add(AssetItem(ticker, name, type, qty, price, price, dur, 15.0));
     notifyListeners();
   }
 
@@ -56,8 +108,8 @@ class AppState extends ChangeNotifier {
       'virtualBalance': virtualBalance,
       'cbRate': cbRate,
       'completedLessons': completedLessons,
-      'mistakeDiary': mistakeDiary,
-      'portfolio': portfolio,
+      'mistakeDiary': mistakeDiary.map((e) => (e as MistakeItem).toJson()).toList(),
+      'portfolio': portfolio.map((e) => (e as AssetItem).toJson()).toList(),
     });
   }
 
@@ -65,11 +117,11 @@ class AppState extends ChangeNotifier {
     try {
       final data = jsonDecode(jsonStr);
       isProMode = data['isProMode'] ?? false;
-      virtualBalance = (data['virtualBalance'] ?? 100000.0).toDouble();
-      cbRate = (data['cbRate'] ?? 21.0).toDouble();
-      completedLessons = List<String>.from(data['completedLessons'] ?? []);
-      mistakeDiary = List>.from(data['mistakeDiary'] ?? []);
-      portfolio = List>.from(data['portfolio'] ?? []);
+      virtualBalance = ((data['virtualBalance'] ?? 100000.0) as num).toDouble();
+      cbRate = ((data['cbRate'] ?? 21.0) as num).toDouble();
+      completedLessons = (data['completedLessons'] as List? ?? []).map((e) => e.toString()).toList();
+      mistakeDiary = (data['mistakeDiary'] as List? ?? []).map((e) => MistakeItem.fromJson(e)).toList();
+      portfolio = (data['portfolio'] as List? ?? []).map((e) => AssetItem.fromJson(e)).toList();
       notifyListeners();
       return true;
     } catch (_) {
@@ -77,7 +129,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<String> sendTelegramBackup(String botToken, String chatId) async {
+  Future sendTelegramBackup(String botToken, String chatId) async {
     if (botToken.isEmpty || chatId.isEmpty) return 'Введите токен и Chat ID';
     try {
       final client = HttpClient();
@@ -92,3 +144,4 @@ class AppState extends ChangeNotifier {
     }
   }
 }
+
