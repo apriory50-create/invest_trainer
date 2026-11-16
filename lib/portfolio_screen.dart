@@ -6,7 +6,7 @@ class PortfolioScreen extends StatefulWidget {
   const PortfolioScreen({super.key, required this.state});
 
   @override
-  State<PortfolioScreen> createState() => _PortfolioScreenState();
+  State createState() => _PortfolioScreenState();
 }
 
 class _PortfolioScreenState extends State<PortfolioScreen> {
@@ -53,16 +53,14 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     double totalVal = 0;
     double stressedVal = 0;
     double stocksVal = 0;
-    double bondsVal = 0;
 
-    for (var a in items) {
-      final val = (a['qty'] as int) * (a['currPrice'] as double);
+    for (var raw in items) {
+      final a = raw as AssetItem;
+      final val = a.qty * a.currPrice;
       totalVal += val;
-      if (a['type'] == 'stock') stocksVal += val;
-      if (a['type'] != 'stock') bondsVal += val;
+      if (a.type == 'stock') stocksVal += val;
 
-      final dur = (a['duration'] as num).toDouble();
-      final dropPct = a['type'] == 'stock' ? (-_stressRateDelta * 2.2) : (-dur * _stressRateDelta);
+      final dropPct = a.type == 'stock' ? (-_stressRateDelta * 2.2) : (-a.duration * _stressRateDelta);
       stressedVal += val * (1 + dropPct / 100);
     }
 
@@ -95,7 +93,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               children: [
                 Text('🩺 Медосмотр и Стресс-тест ставки ЦБ (Текущая: ${widget.state.cbRate.toStringAsFixed(1)}%)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 6),
-                Text('Если ЦБ изменит ставку на: ${_stressRateDelta >= 0 ? '+' : ''}${_stressRateDelta.toStringAsFixed(1)}%'),
+                Text('Если ЦБ изменит ставку на: ${_stressRateDelta.isNegative ? '' : '+'}${_stressRateDelta.toStringAsFixed(1)}%'),
                 Slider(
                   value: _stressRateDelta,
                   min: -5.0,
@@ -104,7 +102,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   onChanged: (v) => setState(() => _stressRateDelta = v),
                 ),
                 Text('Оценка сейчас: ${totalVal.toStringAsFixed(0)} ₽ ➔ После шока: ${stressedVal.toStringAsFixed(0)} ₽ (${(stressedVal - totalVal).toStringAsFixed(0)} ₽)',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: stressedVal < totalVal ? Colors.redAccent : Colors.green)),
+                    style: TextStyle(fontWeight: FontWeight.bold, color: (stressedVal - totalVal).isNegative ? Colors.redAccent : Colors.green)),
               ],
             ),
           ),
@@ -128,13 +126,14 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        ...items.map((a) {
-          final pnl = ((a['currPrice'] as double) - (a['buyPrice'] as double)) * (a['qty'] as int);
+        ...items.map((raw) {
+          final a = raw as AssetItem;
+          final pnl = (a.currPrice - a.buyPrice) * a.qty;
           return Card(
             child: ListTile(
-              title: Text('${a['name']} (${a['ticker']})', style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Кол-во: ${a['qty']} шт | Ср. цена: ${a['buyPrice']} ₽ | Дюрация: ${a['duration']}'),
-              trailing: Text('${pnl >= 0 ? '+' : ''}${pnl.toStringAsFixed(0)} ₽', style: TextStyle(color: pnl >= 0 ? Colors.green : Colors.redAccent, fontWeight: FontWeight.bold)),
+              title: Text('${a.name} (${a.ticker})', style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Кол-во: ${a.qty} шт | Ср. цена: ${a.buyPrice} ₽ | Дюрация: ${a.duration}'),
+              trailing: Text('${pnl.isNegative ? '' : '+'}${pnl.toStringAsFixed(0)} ₽', style: TextStyle(color: pnl.isNegative ? Colors.redAccent : Colors.green, fontWeight: FontWeight.bold)),
             ),
           );
         }),
@@ -142,3 +141,4 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     );
   }
 }
+
