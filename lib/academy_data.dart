@@ -8,6 +8,10 @@ class LessonItem {
   final List<String> options;
   final int correctIndex;
 
+  // Переходники для совместимости с поиском и карточками в main.dart:
+  String get rule => simpleText;
+  String get example => proText;
+
   const LessonItem({
     required this.id,
     required this.category,
@@ -322,5 +326,6 @@ const List<LessonItem> academyLessons = [
     correctIndex: 0,
   ),
 ];
+
 
 
