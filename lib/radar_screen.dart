@@ -7,10 +7,10 @@ class RadarScreen extends StatefulWidget {
   const RadarScreen({super.key, required this.state});
 
   @override
-  State<RadarScreen> createState() => _RadarScreenState();
+  State createState() => _RadarScreenState();
 }
 
-class _RadarScreenState extends State<RadarScreen> {
+class _RadarScreenState extends State {
   final _newsCtrl = TextEditingController(text: 'ЦБ повысил ключевую ставку, а совет директоров Сбербанка рекомендовал рекордные дивиденды');
   final _tgTokenCtrl = TextEditingController();
   final _tgChatCtrl = TextEditingController();
@@ -18,9 +18,11 @@ class _RadarScreenState extends State<RadarScreen> {
   String _analysisResult = 'Нажмите «Просветить новость рентгеном», чтобы увидеть влияние на ваш портфель.';
   String _backupStatus = '';
 
+  AppState get _appState => (widget as RadarScreen).state;
+
   void _analyzeNews() {
     final text = _newsCtrl.text.toLowerCase();
-    final List<String> findings = [];
+    final List findings = [];
 
     if (text.contains('ставк') || text.contains('цб') || text.contains('инфляц')) {
       findings.add('🔴 Триггер ДКП (Ставка ЦБ): Давление на длинные облигации (ОФЗ 26238 в вашем портфеле имеет дюрацию 7.8 — риск просадки тела). Фонд LQDT выигрывает.');
@@ -84,7 +86,7 @@ class _RadarScreenState extends State<RadarScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          final jsonStr = widget.state.exportBackupJson();
+                          final jsonStr = _appState.exportBackupJson();
                           _jsonBackupCtrl.text = jsonStr;
                           Clipboard.setData(ClipboardData(text: jsonStr));
                           setState(() => _backupStatus = 'JSON скопирован в буфер обмена!');
@@ -96,7 +98,7 @@ class _RadarScreenState extends State<RadarScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          final ok = widget.state.importBackupJson(_jsonBackupCtrl.text);
+                          final ok = _appState.importBackupJson(_jsonBackupCtrl.text);
                           setState(() => _backupStatus = ok ? 'Данные успешно восстановлены!' : 'Ошибка формата JSON');
                         },
                         child: const Text('Импорт JSON'),
@@ -116,8 +118,8 @@ class _RadarScreenState extends State<RadarScreen> {
                 const SizedBox(height: 8),
                 ElevatedButton.icon(
                   onPressed: () async {
-                    final msg = await widget.state.sendTelegramBackup(_tgTokenCtrl.text.trim(), _tgChatCtrl.text.trim());
-                    setState(() => _backupStatus = msg);
+                    final msg = await _appState.sendTelegramBackup(_tgTokenCtrl.text.trim(), _tgChatCtrl.text.trim());
+                    setState(() => _backupStatus = msg.toString());
                   },
                   icon: const Icon(Icons.send),
                   label: const Text('Отправить бэкап в Telegram'),
@@ -135,3 +137,4 @@ class _RadarScreenState extends State<RadarScreen> {
     );
   }
 }
+
