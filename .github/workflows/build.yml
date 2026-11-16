@@ -19,10 +19,10 @@ jobs:
         with:
           channel: 'stable'
       - name: Build APK safely
+        shell: bash
         run: |
           cp lib/main.dart main.bak
           cp pubspec.yaml pubspec.bak
-          rm -rf lib/*.dart
           flutter create --project-name invest_trainer --org com.invest.trainer .
           cp main.bak lib/main.dart
           cp pubspec.bak pubspec.yaml
@@ -43,10 +43,10 @@ jobs:
         with:
           channel: 'stable'
       - name: Build Windows EXE safely
+        shell: bash
         run: |
           cp lib/main.dart main.bak
           cp pubspec.yaml pubspec.bak
-          rm -rf lib/*.dart
           flutter config --enable-windows-desktop
           flutter create --project-name invest_trainer .
           cp main.bak lib/main.dart
@@ -58,4 +58,5 @@ jobs:
         with:
           name: InvestTrainer-Windows-EXE
           path: build/windows/x64/runner/Release/
+
 
