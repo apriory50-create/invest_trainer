@@ -8,37 +8,41 @@ class SimulatorScreen extends StatefulWidget {
   const SimulatorScreen({super.key, required this.state});
 
   @override
-  State<SimulatorScreen> createState() => _SimulatorScreenState();
+  State createState() => _SimulatorScreenState();
 }
 
-class _SimulatorScreenState extends State<SimulatorScreen> {
+class _SimulatorScreenState extends State {
   String _scenario = 'Кризис 2008 (Ипотечный обвал)';
-  List<double> _prices = [100.0, 102.0, 101.5, 104.0, 103.0];
+  List _prices = [100.0, 102.0, 101.5, 104.0, 103.0];
   double? _entryPrice;
   int _qty = 0;
   Timer? _timer;
   bool _isRunning = false;
-  String _newsBanner = 'Рынок спокоен. Нажмите «Старт таймлапс» или «Шаг +1 день».';
+  String _newsBanner = 'Рынок спокоен. Нажмите «Таймлапс» или «Шаг +1 день».';
   String _expectationVsReality = 'Ожидание: Рост прибыли +15% | Реальность: ждём отчёт';
 
-  final Map<String, List<double>> _crisisPresets = {
-    'Кризис 2008 (Ипотечный обвал)': [100, 105, 108, 98, 85, 72, 60, 65, 78, 92],
-    'Пандемия 2020 (Локдаун и V-отскок)': [100, 103, 91, 75, 68, 82, 96, 112, 120, 128],
-    'Ставка ЦБ 21% (Облигационный шторм)': [100, 96, 92, 88, 83, 81, 84, 87, 91, 95],
+  final Map _crisisPresets = {
+    'Кризис 2008 (Ипотечный обвал)': [100.0, 105.0, 108.0, 98.0, 85.0, 72.0, 60.0, 65.0, 78.0, 92.0],
+    'Пандемия 2020 (Локдаун и V-отскок)': [100.0, 103.0, 91.0, 75.0, 68.0, 82.0, 96.0, 112.0, 120.0, 128.0],
+    'Ставка ЦБ 21% (Облигационный шторм)': [100.0, 96.0, 92.0, 88.0, 83.0, 81.0, 84.0, 87.0, 91.0, 95.0],
   };
+
+  AppState get _appState => (widget as SimulatorScreen).state;
 
   void _nextStep() {
     setState(() {
-      final preset = _crisisPresets[_scenario]!;
+      final preset = _crisisPresets[_scenario] as List;
       final idx = _prices.length % preset.length;
       final noise = (Random().nextDouble() - 0.48) * 3.0;
-      final nextP = (preset[idx] + noise).clamp(20.0, 250.0);
+      final baseVal = (preset[idx] as num).toDouble();
+      final nextP = (baseVal + noise).clamp(20.0, 250.0);
+      final prevP = (_prices.last as num).toDouble();
       _prices.add(nextP);
 
       if (_prices.length % 4 == 0) {
         _pauseTimelapse();
         _newsBanner = '⚡ АВТО-ПАУЗА: Срочное заседание ЦБ / Отчёт компании!';
-        _expectationVsReality = nextP < _prices[_prices.length - 2]
+        _expectationVsReality = (nextP - prevP).isNegative
             ? 'Ожидание: Снижение ставки | Реальность: Ставку повысили! (Негатив)'
             : 'Ожидание: Падение выручки | Реальность: Рекордные дивиденды! (Позитив)';
       }
@@ -67,30 +71,31 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currPrice = _prices.last;
-    final brokerFee = 0.003; // 0.3%
+    final currPrice = (_prices.last as num).toDouble();
+    const brokerFee = 0.003;
     final breakEven = _entryPrice == null ? null : _entryPrice! * (1 + brokerFee * 2 + 0.002);
     final rawPnl = _entryPrice == null ? 0.0 : (currPrice - _entryPrice!) * _qty;
-    final tax = rawPnl > 0 ? rawPnl * 0.13 : 0.0;
+    final tax = rawPnl.isNegative ? 0.0 : rawPnl * 0.13;
     final netPnl = rawPnl - tax - ((_entryPrice ?? 0) * _qty * brokerFee);
 
     int redSignals = 0;
-    if (currPrice < (_entryPrice ?? currPrice) * 0.92) redSignals++;
+    final baseEntry = _entryPrice ?? currPrice;
+    if ((currPrice - baseEntry * 0.92).isNegative) redSignals++;
     if (_newsBanner.contains('Негатив') || _expectationVsReality.contains('Негатив')) redSignals++;
-    if (currPrice > (_entryPrice ?? currPrice) * 1.20) redSignals++;
+    if ((baseEntry * 1.20 - currPrice).isNegative) redSignals++;
 
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        DropdownButtonFormField<String>(
-          value: _scenario,
+        DropdownButtonFormField(
+          initialValue: _scenario,
           decoration: const InputDecoration(labelText: 'Сценарий / Исторический Босс', border: OutlineInputBorder()),
-          items: _crisisPresets.keys.map((k) => DropdownMenuItem(value: k, child: Text(k))).toList(),
+          items: _crisisPresets.keys.map((k) => DropdownMenuItem(value: k.toString(), child: Text(k.toString()))).toList(),
           onChanged: (v) {
             if (v != null) {
               _pauseTimelapse();
               setState(() {
-                _scenario = v;
+                _scenario = v.toString();
                 _prices = [100.0, 101.0];
                 _entryPrice = null;
                 _qty = 0;
@@ -119,7 +124,7 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade700), borderRadius: BorderRadius.circular(8)),
           child: CustomPaint(
-            painter: _ChartPainter(_prices, _entryPrice, breakEven),
+            painter: _ChartPainter(_prices, breakEven),
             size: Size.infinite,
           ),
         ),
@@ -129,7 +134,7 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
           children: [
             Text('Цена: ${currPrice.toStringAsFixed(2)} ₽', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             if (breakEven != null)
-              Text('Безубыток (с ком. и НДФЛ): ${breakEven.toStringAsFixed(2)} ₽', style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
+              Text('Безубыток: ${breakEven.toStringAsFixed(2)} ₽', style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 8),
@@ -155,11 +160,11 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
               onPressed: _qty == 0
                   ? null
                   : () {
-                      if (netPnl < 0) {
-                        widget.state.addMistake(_scenario, 'Продажа в минус без стоп-плана', netPnl);
+                      if (netPnl.isNegative) {
+                        _appState.addMistake(_scenario, 'Продажа в минус без стоп-плана', netPnl);
                       }
                       setState(() {
-                        widget.state.virtualBalance += netPnl;
+                        _appState.virtualBalance += netPnl;
                         _entryPrice = null;
                         _qty = 0;
                       });
@@ -203,25 +208,25 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
 }
 
 class _ChartPainter extends CustomPainter {
-  final List<double> prices;
-  final double? entry;
+  final List prices;
   final double? breakEven;
-  _ChartPainter(this.prices, this.entry, this.breakEven);
+  _ChartPainter(this.prices, this.breakEven);
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (prices.length < 2) return;
-    final minP = prices.reduce(min) - 5;
-    final maxP = prices.reduce(max) + 5;
+    if (prices.length == 1 || prices.isEmpty) return;
+    final doubleList = prices.map((e) => (e as num).toDouble()).toList();
+    final minP = doubleList.reduce(min) - 5.0;
+    final maxP = doubleList.reduce(max) + 5.0;
     final paintLine = Paint()
       ..color = Colors.lightBlueAccent
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke;
 
     final path = Path();
-    for (int i = 0; i < prices.length; i++) {
-      final x = i * (size.width / (prices.length - 1));
-      final y = size.height - ((prices[i] - minP) / (maxP - minP)) * size.height;
+    for (int i = 0; i != doubleList.length; i++) {
+      final x = i * (size.width / (doubleList.length - 1));
+      final y = size.height - ((doubleList[i] - minP) / (maxP - minP)) * size.height;
       if (i == 0) {
         path.moveTo(x, y);
       } else {
@@ -230,15 +235,16 @@ class _ChartPainter extends CustomPainter {
     }
     canvas.drawPath(path, paintLine);
 
-    if (breakEven != null && breakEven! >= minP && breakEven! <= maxP) {
+    if (breakEven != null) {
       final by = size.height - ((breakEven! - minP) / (maxP - minP)) * size.height;
       final bePaint = Paint()
         ..color = Colors.orangeAccent
         ..strokeWidth = 1.5;
-      canvas.drawLine(Offset(0, by), Offset(size.width, by), bePaint);
+      canvas.drawLine(Offset(0, by.clamp(0.0, size.height)), Offset(size.width, by.clamp(0.0, size.height)), bePaint);
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
