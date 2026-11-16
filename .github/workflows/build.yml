@@ -1,0 +1,50 @@
+name: Build Invest Trainer
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build_android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      - name: Generate platform folders and build APK
+        run: |
+          flutter create --project-name invest_trainer --org com.invest.trainer .
+          flutter pub get
+          flutter build apk --debug
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: InvestTrainer-Android-APK
+          path: build/app/outputs/flutter-apk/app-debug.apk
+
+  build_windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      - name: Generate platform folders and build Windows EXE
+        run: |
+          flutter config --enable-windows-desktop
+          flutter create --project-name invest_trainer .
+          flutter pub get
+          flutter build windows --release
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: InvestTrainer-Windows-EXE
+          path: build/windows/x64/runner/Release/
