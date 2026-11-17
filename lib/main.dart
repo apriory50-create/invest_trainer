@@ -45,7 +45,7 @@ class _MainContainerState extends State<MainContainer> {
       SimulatorScreen(state: _appState),
       PortfolioScreen(state: _appState),
       RadarScreen(state: _appState),
-      NewsAiScreen(state: _appState),
+      const NewsAiScreen(portfolioTickers: ['SBER', 'LKOH', 'SU26238']),
     ];
 
     return Scaffold(
