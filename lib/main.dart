@@ -38,6 +38,60 @@ class _MainContainerState extends State<MainContainer> {
   final AppState _appState = AppState();
   int _currentIndex = 0;
 
+  void _showHowToUseDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('📖 Как пользоваться приложением'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '1. 🎓 Академия (100 уроков)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Нажмите на любой урок, прочитайте правило, ответьте на мини-вопрос и нажмите зелёную кнопку «Завершить урок». Звёздочка ⭐ вверху переключает язык между «Новичком» и «Профи».',
+              ),
+              SizedBox(height: 10),
+              Text(
+                '2. 📈 Симулятор рынка',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Выберите кризис (2008, 2020 или ставку 21%), нажимайте «Шаг +1 день» или «Таймлапс». Покупайте и продавайте виртуальные лоты — тренируйтесь без риска потерять реальные деньги.',
+              ),
+              SizedBox(height: 10),
+              Text(
+                '3. 💼 Портфель и Стресс-тест',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Добавляйте свои акции и ОФЗ. Двигайте ползунок «Ставка ЦБ», чтобы увидеть, как изменится цена портфеля, и используйте расчёт ребалансировки при пополнении.',
+              ),
+              SizedBox(height: 10),
+              Text(
+                '4. 📡 Радар и 🧠 ИИ Новости',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'В «Радаре» вставьте любую новость из Telegram — приложение покажет её влияние на ваши бумаги. В «ИИ Новостях» фильтруйте события по портфелю.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Понятно, поехали!'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -48,7 +102,7 @@ class _MainContainerState extends State<MainContainer> {
           SimulatorScreen(state: _appState),
           PortfolioScreen(state: _appState),
           RadarScreen(state: _appState),
-          const NewsAiScreen(portfolioTickers: ['SBER', 'LKOH', 'SU26238']),
+          NewsAiScreen(portfolioTickers: _appState.portfolioTickers),
         ];
 
         return Scaffold(
@@ -57,12 +111,15 @@ class _MainContainerState extends State<MainContainer> {
             title: const Text('Invest Trainer 🚀'),
             actions: [
               IconButton(
+                icon: const Icon(Icons.help_outline),
+                tooltip: 'Как пользоваться',
+                onPressed: _showHowToUseDialog,
+              ),
+              IconButton(
                 icon: Icon(_appState.isProMode ? Icons.star : Icons.star_border),
-                tooltip: 'Режим Профи',
+                tooltip: _appState.isProMode ? 'Режим Профи (вкл)' : 'Режим Новичка',
                 onPressed: () {
-                  setState(() {
-                    _appState.isProMode = !_appState.isProMode;
-                  });
+                  _appState.toggleProMode();
                 },
               ),
             ],
