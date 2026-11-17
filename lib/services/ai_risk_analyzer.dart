@@ -1,6 +1,6 @@
 class AiRiskAnalysisResult {
-  final String sentiment; // 'Позитивно', 'Негативно', 'Нейтрально'
-  final double riskScore; // в процентах (0 - 100%)
+  final String sentiment;
+  final double riskScore;
   final String summary;
 
   AiRiskAnalysisResult({
@@ -17,7 +17,6 @@ class AiRiskAnalyzer {
   }) {
     String lowerTitle = newsTitle.toLowerCase();
     
-    // Простой интеллектуальный эвристический анализ для симулятора
     if (lowerTitle.contains('ставка') || lowerTitle.contains('инфляция') || lowerTitle.contains('санкции')) {
       if (ticker.startsWith('OFZ')) {
         return AiRiskAnalysisResult(
@@ -32,7 +31,7 @@ class AiRiskAnalyzer {
           summary: 'Макроэкономическое давление умеренно влияет на акции широкого рынка.',
         );
       }
-    } else if (lowerTitle.contains('дивиденд') || lowerumper = lowerTitle.contains('прибыль') || lowerTitle.contains('рост')) {
+    } else if (lowerTitle.contains('дивиденд') || lowerTitle.contains('прибыль') || lowerTitle.contains('рост')) {
       return AiRiskAnalysisResult(
         sentiment: 'Позитивно',
         riskScore: 15.0,
