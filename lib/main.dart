@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'services/ai_api_service.dart';
 import 'services/news_source_service.dart';
 import 'screens/news_ai_screen.dart';
-// Импортируем наши уроки академии
 import 'academy_data.dart';
 import 'academy_part2.dart';
 
@@ -37,20 +36,18 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  // Портфель пользователя
-  final List<String> portfolioTickers = ['SBER', 'LKOH', 'OFZ', 'SU26238'];
+  final List portfolioTickers = ['SBER', 'LKOH', 'OFZ', 'SU26238'];
 
   @override
   Widget build(BuildContext context) {
-    // Объединяем все уроки из двух файлов в один список
-    final List> allAcademyLessons = [
-      ...academyLessons,
-      ...academyLessonsPart2,
-    ];
+    // Объединяем все уроки
+    final allAcademyLessons = [];
+    allAcademyLessons.addAll(academyLessons);
+    allAcademyLessons.addAll(academyLessonsPart2);
 
-    final List<Widget> screens = [
+    final screens = [
       // 0. Новости и ИИ Анализ
-      NewsAiScreen(portfolioTickers: portfolioTickers),
+      NewsAiScreen(portfolioTickers: portfolioTickers.cast<String>()),
       
       // 1. Академия инвестиций (100 уроков)
       Scaffold(
@@ -183,7 +180,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-// Вспомогательный экран для чтения конкретного урока
 class LessonDetailScreen extends StatelessWidget {
   final int lessonNumber;
   final String title;
