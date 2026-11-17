@@ -22,10 +22,11 @@ class InvestTrainerApp extends StatelessWidget {
 class AssetItem {
   final String ticker;
   final String name;
-  final String type; // Акция, ОФЗ, Фонд
+  final String type;
   double price;
-  final double couponOrDiv; // % годовых
-  final double nkd; // НКД для облигаций
+  final double couponOrDiv;
+  final double nkd;
+  int qty;
 
   AssetItem({
     required this.ticker,
@@ -34,6 +35,7 @@ class AssetItem {
     required this.price,
     required this.couponOrDiv,
     this.nkd = 0.0,
+    this.qty = 0,
   });
 }
 
@@ -42,7 +44,7 @@ class LessonItem {
   final String subtitle;
   final String content;
   final String question;
-  final List<String> options;
+  final List options;
   final int correctIndex;
   bool completed;
 
@@ -57,36 +59,47 @@ class LessonItem {
   });
 }
 
+class NewsItem {
+  final String title;
+  final String impact;
+  final String advice;
+  final double marketShift;
+
+  NewsItem({
+    required this.title,
+    required this.impact,
+    required this.advice,
+    required this.marketShift,
+  });
+}
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State {
   int _tab = 0;
   double _cash = 100000.0;
   double _imoex = 2745.50;
   double _imoexChange = 1.2;
-  final Map<String, int> _portfolio = {'SU26238': 10, 'SBER': 20};
 
-  // Стресс-тест параметры
   double _crashPercent = -20.0;
   bool _useBondShield = true;
-
-  // Калькулятор ОФЗ параметры
   int _calcBondCount = 10;
+  int _selectedNewsIndex = 0;
 
-  final List<AssetItem> _market = [
-    AssetItem(ticker: 'SBER', name: 'Сбербанк', type: 'Акция', price: 280.0, couponOrDiv: 12.5),
-    AssetItem(ticker: 'LKOH', name: 'Лукойл', type: 'Акция', price: 6900.0, couponOrDiv: 14.0),
-    AssetItem(ticker: 'SU26238', name: 'ОФЗ 26238 (Длинная)', type: 'ОФЗ', price: 540.0, couponOrDiv: 13.1, nkd: 18.4),
-    AssetItem(ticker: 'SU26244', name: 'ОФЗ 26244 (Средняя)', type: 'ОФЗ', price: 820.0, couponOrDiv: 15.2, nkd: 24.1),
-    AssetItem(ticker: 'LQDT', name: 'Фонд Ликвидности', type: 'Фонд', price: 1.55, couponOrDiv: 19.5),
+  final _market = [
+    AssetItem(ticker: 'SBER', name: 'Сбербанк', type: 'Акция', price: 280.0, couponOrDiv: 12.5, qty: 20),
+    AssetItem(ticker: 'LKOH', name: 'Лукойл', type: 'Акция', price: 6900.0, couponOrDiv: 14.0, qty: 0),
+    AssetItem(ticker: 'SU26238', name: 'ОФЗ 26238 (Длинная)', type: 'ОФЗ', price: 540.0, couponOrDiv: 13.1, nkd: 18.4, qty: 10),
+    AssetItem(ticker: 'SU26244', name: 'ОФЗ 26244 (Средняя)', type: 'ОФЗ', price: 820.0, couponOrDiv: 15.2, nkd: 24.1, qty: 0),
+    AssetItem(ticker: 'LQDT', name: 'Фонд Ликвидности', type: 'Фонд', price: 1.55, couponOrDiv: 19.5, qty: 0),
   ];
 
-  final List<LessonItem> _lessons = [
+  final _lessons = [
     LessonItem(
       title: 'Урок 1: Что такое акции и облигации?',
       subtitle: 'Основы фондового рынка для новичков.',
@@ -129,34 +142,32 @@ class _MainScreenState extends State<MainScreen> {
     ),
   ];
 
-  final List> _newsList = [
-    {
-      'title': 'ЦБ РФ сохранил ключевую ставку на текущем уровне',
-      'impact': 'Нейтрально-позитивно',
-      'advice': 'Ставка стабильна. Удерживайте до 40% в коротких ОФЗ и фондах ликвидности, а купоны реинвестируйте в подешевевшие дивидендные акции.',
-      'marketShift': '1.5',
-    },
-    {
-      'title': 'Нефтяные компании объявили рекордные промежуточные дивиденды',
-      'impact': 'Позитив для акций (+3.5%)',
-      'advice': 'Экспортеры (Лукойл и др.) поддержат индекс Мосбиржи. Хороший момент для удержания акций в портфеле.',
-      'marketShift': '3.5',
-    },
-    {
-      'title': 'Ужесточение налоговой нагрузки и геополитический шум',
-      'impact': 'Высокий риск просадки (-4.0%)',
-      'advice': 'Рынок акций может временно просесть. Не покупайте на эмоциях, используйте защитную часть портфеля (ОФЗ/LQDT) для плавной докупки на просадке.',
-      'marketShift': '-4.0',
-    },
+  final _newsList = [
+    NewsItem(
+      title: 'ЦБ РФ сохранил ключевую ставку на текущем уровне',
+      impact: 'Нейтрально-позитивно (+1.5%)',
+      advice: 'Ставка стабильна. Удерживайте до 40% в коротких ОФЗ и фондах ликвидности, а купоны реинвестируйте в подешевевшие дивидендные акции.',
+      marketShift: 1.5,
+    ),
+    NewsItem(
+      title: 'Нефтяные компании объявили рекордные промежуточные дивиденды',
+      impact: 'Позитив для акций (+3.5%)',
+      advice: 'Экспортеры (Лукойл и др.) поддержат индекс Мосбиржи. Хороший момент для удержания акций в портфеле.',
+      marketShift: 3.5,
+    ),
+    NewsItem(
+      title: 'Ужесточение налоговой нагрузки и геополитический шум',
+      impact: 'Высокий риск просадки (-4.0%)',
+      advice: 'Рынок акций может временно просесть. Не покупайте на эмоциях, используйте защитную часть портфеля (ОФЗ/LQDT) для плавной докупки на просадке.',
+      marketShift: -4.0,
+    ),
   ];
-  int _selectedNewsIndex = 0;
 
   double get _portfolioAssetsValue {
     double total = 0;
-    _portfolio.forEach((ticker, qty) {
-      final asset = _market.firstWhere((a) => a.ticker == ticker);
-      total += (asset.price + asset.nkd) * qty;
-    });
+    for (var asset in _market) {
+      total += (asset.price + asset.nkd) * asset.qty;
+    }
     return total;
   }
 
@@ -167,7 +178,7 @@ class _MainScreenState extends State<MainScreen> {
     if (_cash >= cost) {
       setState(() {
         _cash -= cost;
-        _portfolio[asset.ticker] = (_portfolio[asset.ticker] ?? 0) + 1;
+        asset.qty += 1;
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -177,15 +188,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _sellAsset(AssetItem asset) {
-    final currentQty = _portfolio[asset.ticker] ?? 0;
-    if (currentQty > 0) {
+    if (asset.qty > 0) {
       setState(() {
         _cash += (asset.price + asset.nkd);
-        if (currentQty == 1) {
-          _portfolio.remove(asset.ticker);
-        } else {
-          _portfolio[asset.ticker] = currentQty - 1;
-        }
+        asset.qty -= 1;
       });
     }
   }
@@ -228,11 +234,11 @@ class _MainScreenState extends State<MainScreen> {
                     Text(lesson.question, style: const TextStyle(fontSize: 15)),
                     const SizedBox(height: 10),
                     ...List.generate(lesson.options.length, (idx) {
-                      return RadioListTile<int>(
-                        title: Text(lesson.options[idx]),
+                      return RadioListTile(
+                        title: Text(lesson.options[idx].toString()),
                         value: idx,
                         groupValue: selectedOption,
-                        onChanged: (val) => setModalState(() => selectedOption = val),
+                        onChanged: (val) => setModalState(() => selectedOption = val as int?),
                       );
                     }),
                     const SizedBox(height: 12),
@@ -245,7 +251,7 @@ class _MainScreenState extends State<MainScreen> {
                                 if (selectedOption == lesson.correctIndex) {
                                   setState(() {
                                     lesson.completed = true;
-                                    _cash += 1000; // Бонус на счет за урок
+                                    _cash += 1000;
                                   });
                                   Navigator.pop(context);
                                   ScaffoldMessenger.of(this.context).showSnackBar(
@@ -301,9 +307,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildSimulatorTab() {
-    final ofz26238 = _market.firstWhere((a) => a.ticker == 'SU26238');
+    final ofz26238 = _market[2];
     final totalBondCost = (ofz26238.price + ofz26238.nkd) * _calcBondCount;
-    final annualCoupon = _calcBondCount * 71.0; // ~71 руб купон в год на бумагу
+    final annualCoupon = _calcBondCount * 71.0;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -353,7 +359,6 @@ class _MainScreenState extends State<MainScreen> {
         const Text('Биржевой стакан (Покупка и Продажа):', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         ..._market.map((asset) {
-          final qty = _portfolio[asset.ticker] ?? 0;
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
             child: Padding(
@@ -368,15 +373,15 @@ class _MainScreenState extends State<MainScreen> {
                         Text('Тип: ${asset.type} • Доходность: ~${asset.couponOrDiv}%'),
                         Text(
                           asset.nkd > 0
-                              ? 'Цена: ${asset.price} ₽ + НКД ${asset.nkd} ₽ | В портфеле: $qty шт.'
-                              : 'Цена: ${asset.price} ₽ | В портфеле: $qty шт.',
+                              ? 'Цена: ${asset.price} ₽ + НКД ${asset.nkd} ₽ | В портфеле: ${asset.qty} шт.'
+                              : 'Цена: ${asset.price} ₽ | В портфеле: ${asset.qty} шт.',
                           style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
                   ),
                   IconButton.filledTonal(
-                    onPressed: qty > 0 ? () => _sellAsset(asset) : null,
+                    onPressed: asset.qty > 0 ? () => _sellAsset(asset) : null,
                     icon: const Icon(Icons.remove),
                   ),
                   const SizedBox(width: 6),
@@ -502,14 +507,14 @@ class _MainScreenState extends State<MainScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
               leading: Icon(Icons.newspaper, color: isSelected ? Colors.blue : Colors.grey),
-              title: Text(item['title']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Оценка: ${item['impact']}'),
+              title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Оценка: ${item.impact}'),
               trailing: ElevatedButton(
                 onPressed: () {
                   setState(() => _selectedNewsIndex = i);
-                  _simulateMarketStep(double.parse(item['marketShift']!));
+                  _simulateMarketStep(item.marketShift);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Новость отыграна в котировках Симулятора (${item['marketShift']}%)')),
+                    SnackBar(content: Text('Новость отыграна в котировках Симулятора (${item.marketShift}%)')),
                   );
                 },
                 child: const Text('Применить'),
@@ -529,7 +534,7 @@ class _MainScreenState extends State<MainScreen> {
                 const Text('🤖 Рекомендация ИИ-наставника:',
                     style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
-                Text(currentNews['advice']!, style: const TextStyle(fontSize: 15, height: 1.4)),
+                Text(currentNews.advice, style: const TextStyle(fontSize: 15, height: 1.4)),
               ],
             ),
           ),
