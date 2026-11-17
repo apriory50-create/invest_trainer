@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'academy_data.dart';
 import 'academy_part2.dart';
+import 'news_data.dart';
+import 'news_part2.dart';
 
 void main() => runApp(const InvestApp());
 
@@ -15,14 +17,17 @@ class _InvestAppState extends State<InvestApp> {
   bool _isPro = false;
   int _tab = 0;
   String _searchQuery = '';
+  String _selectedNewsCategory = 'Все';
   final Set<int> _doneLessons = {};
+  final Set<int> _doneNews = {};
   double _keyRate = 21.0;
   double _bondPrice = 820.0;
   double _coupon = 120.0;
   double _crashPercent = 0.0;
 
-  // Склеиваем оба файла (1-60 и 61-100) в единый список из 100 уроков:
+  // Склеиваем уроки и новости из всех файлов:
   List<LessonItem> get _allLessons => [...academyLessons, ...academyLessonsPart2];
+  List<NewsScenario> get _allNews => [...marketNewsList, ...marketNewsPart2];
 
   ThemeData _buildTheme() {
     if (_themeIndex == 1) {
@@ -55,7 +60,7 @@ class _InvestAppState extends State<InvestApp> {
       theme: _buildTheme(),
       home: Scaffold(
         appBar: AppBar(
-          title: Text(_isPro ? 'INVEST PRO (100)' : 'Инвестор с нуля'),
+          title: Text(_isPro ? 'INVEST PRO (100+35)' : 'Инвестор с нуля'),
           actions: [
             Row(
               children: [
@@ -111,7 +116,7 @@ class _InvestAppState extends State<InvestApp> {
                 const SizedBox(height: 12),
                 TextField(
                   decoration: const InputDecoration(
-                    hintText: 'Поиск по 100 урокам (например: ОФЗ, НКД, налог)...',
+                    hintText: 'Поиск по 100 урокам (ОФЗ, НКД, налог)...',
                     prefixIcon: Icon(Icons.search),
                     isDense: true,
                     border: OutlineInputBorder(),
@@ -169,12 +174,12 @@ class _InvestAppState extends State<InvestApp> {
 
   Widget _buildRadar() {
     final items = [
-      ('SBER', 'Сбербанк', 'Акция', '285 ₽', '+1.4%', 'Финансовый гигант с высокой рентабельностью ROE 24%'),
+      ('SBER', 'Сбербанк', 'Акция', '285 ₽', '+1.4%', 'Финансовый гигант с рентабельностью ROE 25%'),
       ('LKOH', 'Лукойл', 'Акция', '7150 ₽', '+0.8%', 'Экспортер нефти с отрицательным чистым долгом'),
-      ('SU26238', 'ОФЗ 26238', 'Облигация-ПД', '520 ₽', '-0.3%', 'Длинная госбумага (погашение 2041) под снижение ставки'),
-      ('SU29025', 'ОФЗ-ПК 29025', 'Флоатер', '985 ₽', '+0.1%', 'Купон плывет за ставкой RUONIA, защита от шторма'),
-      ('LQDT', 'Фонд Ликвидности', 'БПИФ', '1.54 ₽', '+0.06%', 'Ежедневная капитализация под ставку ЦБ без просадок'),
-      ('GLDRUB', 'Золото МосБиржи', 'Металл', '8450 ₽', '+1.1%', 'Прямая защита портфеля от ослабления рубля'),
+      ('SU26238', 'ОФЗ 26238', 'Облигация-ПД', '520 ₽', '-0.3%', 'Длинная госбумага под снижение ключевой ставки'),
+      ('SU29025', 'ОФЗ-ПК 29025', 'Флоатер', '985 ₽', '+0.1%', 'Купон плывет за ставкой RUONIA, защита в шторм'),
+      ('LQDT', 'Фонд Ликвидности', 'БПИФ', '1.54 ₽', '+0.06%', 'Ежедневный доход под ставку ЦБ без просадок'),
+      ('GLDRUB', 'Золото МосБиржи', 'Металл', '8450 ₽', '+1.1%', 'Прямая страховка портфеля от падения рубля'),
     ];
     return ListView.builder(
       padding: const EdgeInsets.all(12),
@@ -200,73 +205,101 @@ class _InvestAppState extends State<InvestApp> {
   }
 
   Widget _buildNewsTrainer() {
-    final news = [
-      (
-        'ЦБ РФ неожиданно повысил ключевую ставку на 2% и дал жесткий сигнал',
-        'Какие активы выиграют от этой новости в первую очередь?',
-        ['Длинные ОФЗ с постоянным купоном', 'Облигации-флоатеры и фонды ликвидности (LQDT)', 'Компании с огромными долгами'],
-        1,
-        'Верно! Купоны флоатеров и доходность фондов ликвидности сразу вырастут вслед за ставкой ЦБ.'
-      ),
-      (
-        'Курс рубля ослаб на 10% за месяц при стабильных ценах на нефть',
-        'Кто на Московской бирже получит дополнительную рублевую прибыль?',
-        ['Экспортеры (нефтяники, удобрения, золотодобытчики) и владельцы золота', 'Импортеры электроники', 'Рублевые вклады'],
-        0,
-        'Точно! Валютная выручка экспортеров при пересчете в рубли увеличивается.'
-      ),
-      (
-        'ЦБ объявил о начале цикла снижения ключевой ставки на фоне замедления инфляции',
-        'Какой инструмент даст максимальный рост тела («эффект ракеты»)?',
-        ['Длинные ОФЗ с фиксированным купоном (высокая дюрация)', 'Наличные под матрасом', 'Короткие вклады на 1 месяц'],
-        0,
-        'Блестяще! При снижении ставки длинные ОФЗ с высокой дюрацией сильно растут в цене, фиксируя высокий купон на годы.'
-      ),
-    ];
-    return ListView.builder(
+    final categories = ['Все', 'Облигации', 'Акции', 'Фонды и Золото', 'Фьючерсы и Опционы', 'Отрасли', 'Тренды и Отчеты'];
+    final filteredNews = _selectedNewsCategory == 'Все'
+        ? _allNews
+        : _allNews.where((n) => n.category == _selectedNewsCategory).toList();
+
+    return ListView(
       padding: const EdgeInsets.all(12),
-      itemCount: news.length,
-      itemBuilder: (context, i) {
-        final item = news[i];
-        return Card(
+      children: [
+        Card(
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.bolt, color: Colors.amberAccent),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(item.$1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-                  ],
-                ),
+                Text('Разбор кейсов: разобрано ${_doneNews.length} из ${_allNews.length}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 8),
-                Text(item.$2, style: const TextStyle(color: Colors.white70)),
-                const SizedBox(height: 10),
-                ...List.generate(item.$3.length, (idx) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(40), alignment: Alignment.centerLeft),
-                      onPressed: () {
-                        final ok = idx == item.$4;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(ok ? item.$5 : 'Подумай еще: вспомни, кому выгодна эта ситуация.'),
-                            backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
-                          ),
-                        );
-                      },
-                      child: Text(item.$3[idx]),
-                    ),
-                  );
-                }),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: categories.map((cat) {
+                      final active = _selectedNewsCategory == cat;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(cat),
+                          selected: active,
+                          onSelected: (s) => setState(() => _selectedNewsCategory = cat),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ],
             ),
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 8),
+        ...filteredNews.map((item) {
+          final isSolved = _doneNews.contains(item.id);
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(isSolved ? Icons.check_circle : Icons.bolt,
+                          color: isSolved ? Colors.greenAccent : Colors.amberAccent),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blueGrey.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(item.tag, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(item.headline, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, height: 1.3)),
+                  const SizedBox(height: 6),
+                  Text(item.contextText, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.3)),
+                  const Divider(height: 20),
+                  Text(item.question, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  ...List.generate(item.options.length, (idx) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(42), alignment: Alignment.centerLeft),
+                        onPressed: () {
+                          final ok = idx == item.correctIndex;
+                          if (ok) setState(() => _doneNews.add(item.id));
+                          final explanation = _isPro ? item.proExplain : item.simpleExplain;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(ok ? 'Верно! $explanation' : 'Подумай еще: вспомни правила рынка из Академии.'),
+                              backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        },
+                        child: Text(item.options[idx]),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -335,6 +368,7 @@ class _InvestAppState extends State<InvestApp> {
     );
   }
 }
+
 
 
 
