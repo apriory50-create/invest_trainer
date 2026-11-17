@@ -1,8 +1,10 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'academy_data.dart';
 import 'academy_part2.dart';
 import 'news_data.dart';
 import 'news_part2.dart';
+import 'screens/news_ai_screen.dart';
 
 void main() => runApp(const InvestApp());
 
@@ -29,6 +31,9 @@ class _InvestAppState extends State<InvestApp> {
   List<LessonItem> get _allLessons => [...academyLessons, ...academyLessonsPart2];
   List<NewsScenario> get _allNews => [...marketNewsList, ...marketNewsPart2];
 
+  // Список тикеров вашего портфеля для фильтрации новостей
+  final List<String> _userPortfolioTickers = ['SBER', 'LKOH', 'OFZ', 'SU26238'];
+
   ThemeData _buildTheme() {
     if (_themeIndex == 1) {
       return ThemeData.light(useMaterial3: true).copyWith(
@@ -51,6 +56,7 @@ class _InvestAppState extends State<InvestApp> {
       _buildAcademy(),
       _buildRadar(),
       _buildNewsTrainer(),
+      NewsAiScreen(portfolioTickers: _userPortfolioTickers), // Интегрированный ИИ-экран каналов и новостей
       _buildSimulator(),
       _buildPortfolio(),
     ];
@@ -81,7 +87,8 @@ class _InvestAppState extends State<InvestApp> {
           destinations: const [
             NavigationDestination(icon: Icon(Icons.school_outlined), label: 'Академия'),
             NavigationDestination(icon: Icon(Icons.radar), label: 'Радар'),
-            NavigationDestination(icon: Icon(Icons.newspaper_outlined), label: 'Новости'),
+            NavigationDestination(icon: Icon(Icons.newspaper_outlined), label: 'Кейсы'),
+            NavigationDestination(icon: Icon(Icons.psychology), label: 'ИИ-Новости'),
             NavigationDestination(icon: Icon(Icons.calculate_outlined), label: 'ОФЗ'),
             NavigationDestination(icon: Icon(Icons.pie_chart_outline), label: 'Портфель'),
           ],
@@ -339,7 +346,7 @@ class _InvestAppState extends State<InvestApp> {
     const double baseCapital = 100000;
     final stocks = 40000 * (1 - _crashPercent / 100);
     const bonds = 40000.0;
-    const cash = 20000.0;
+    const cash = 20.000;
     final total = stocks + bonds + cash;
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -368,6 +375,7 @@ class _InvestAppState extends State<InvestApp> {
     );
   }
 }
+
 
 
 
