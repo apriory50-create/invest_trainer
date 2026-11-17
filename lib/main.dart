@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// Импортируем наши сервисы и экраны
 import 'services/ai_api_service.dart';
 import 'services/news_source_service.dart';
 import 'screens/news_ai_screen.dart';
@@ -19,57 +18,111 @@ class InvestTrainerApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const MainMenuScreen(),
+      home: const MainNavigationScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class MainMenuScreen extends StatelessWidget {
-  const MainMenuScreen({super.key});
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({super.key});
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _currentIndex = 0;
+
+  final List<String> portfolioTickers = ['SBER', 'LKOH', 'OFZ', 'SU26238'];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Invest Trainer 📈'),
-        centerTitle: true,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          Card(
-            elevation: 4,
-            child: ListTile(
-              leading: const Icon(Icons.newspaper, color: Colors.blue, size: 36),
-              title: const Text('Новости и ИИ Анализ', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Лента новостей, фильтры по портфелю и AI-ассистент'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const NewsAiScreen()),
-                );
-              },
+    final List<Widget> screens = [
+      // 0. Новости и ИИ Анализ
+      NewsAiScreen(portfolioTickers: portfolioTickers),
+      
+      // 1. Академия инвестиций
+      Scaffold(
+        appBar: AppBar(title: const Text('🎓 Академия инвестиций')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: const [
+            ListTile(
+              leading: Icon(Icons.menu_book, color: Colors.green),
+            title: Text('Уроки 1-100'),
+            subtitle: Text('Полный курс обучения от базы до облигаций ОФЗ и акций'),
             ),
+          ],
+        ),
+      ),
+
+      // 2. Портфель и Калькулятор
+      Scaffold(
+        appBar: AppBar(title: const Text('💼 Портфель и ОФЗ')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: const [
+            ListTile(
+              leading: Icon(Icons.pie_chart, color: Colors.blue),
+              title: Text('Мой портфель активов'),
+              subtitle: Text('Тикеры: SBER, LKOH, OFZ, SU26238'),
+            ),
+          ],
+        ),
+      ),
+
+      // 3. Радар рынка
+      Scaffold(
+        appBar: AppBar(title: const Text('📡 Радар рынка')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: const [
+            ListTile(
+              leading: Icon(Icons.radar, color: Colors.orange),
+              title: Text('Рыночные кейсы и симуляции'),
+              subtitle: Text('Анализ ситуаций и стресс-тест портфеля'),
+            ),
+          ],
+        ),
+      ),
+    ];
+
+    return Scaffold(
+      body: screens[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.newspaper),
+            label: 'Новости',
           ),
-          const SizedBox(height: 12),
-          // Здесь можно добавить другие разделы (Академия, Портфель, Симулятор)
-          ListTile(
-            leading: const Icon(Icons.school, color: Colors.green),
-            title: const Text('Академия инвестиций'),
-            subtitle: const Text('100 уроков от новичка до профи'),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Академия уже доступна в проекте!')),
-              );
-            },
+          BottomNavigationBarItem(
+            icon: Icon(Icons.school),
+            label: 'Академия',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.pie_chart),
+            label: 'Портфель',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.radar),
+            label: 'Радар',
           ),
         ],
       ),
     );
   }
 }
+
 
 
 
