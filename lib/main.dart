@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'services/ai_api_service.dart';
 import 'services/news_source_service.dart';
 import 'screens/news_ai_screen.dart';
-// Импортируем наши уроки академии (уроки 1-60 и 61-100)
+// Импортируем наши уроки академии
 import 'academy_data.dart';
 import 'academy_part2.dart';
 
@@ -42,7 +42,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Объединяем все 100 уроков из двух файлов в один список
+    // Объединяем все уроки из двух файлов в один список
     final List> allAcademyLessons = [
       ...academyLessons,
       ...academyLessonsPart2,
@@ -77,7 +77,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  // Открываем детальный экран урока
                   Navigator.push(
                     context,
                     MaterialPageRoute(
