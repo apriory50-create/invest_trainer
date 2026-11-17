@@ -32,7 +32,7 @@ class MainHomeScreen extends StatefulWidget {
 
 class _MainHomeScreenState extends State<MainHomeScreen> {
   int _currentIndex = 0;
-  bool isProMode = false; // Smart Chameleon UI режим
+  bool isProMode = false;
   double balance = 100000.0;
   List<int> completedLessons = [];
 
@@ -65,7 +65,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       ),
       SimulatorScreen(isProMode: isProMode),
       PortfolioScreen(balance: balance),
-      NewsAiScreen(),
+      const NewsAiScreen(),
     ];
 
     return Scaffold(
@@ -103,7 +103,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
   }
 }
 
-// 1. Вкладка Академии с сохранением
 class AcademyScreen extends StatelessWidget {
   final List<int> completedLessons;
   final Function(int) onLessonComplete;
@@ -120,7 +119,7 @@ class AcademyScreen extends StatelessWidget {
         return ListTile(
           leading: Icon(isDone ? Icons.check_circle : Icons.radio_button_unchecked, color: isDone ? Colors.green : Colors.grey),
           title: Text('Урок $lessonId: Основы инвестирования'),
-          subtitle: Text(isDone ? 'Пройдено'ж : 'Нажмите, чтобы изучить концепцию'),
+          subtitle: Text(isDone ? 'Пройдено' : 'Нажмите, чтобы изучить концепцию'),
           trailing: ElevatedButton(
             onPressed: () => onLessonComplete(lessonId),
             child: Text(isDone ? 'Повторить' : 'Пройти'),
@@ -131,7 +130,6 @@ class AcademyScreen extends StatelessWidget {
   }
 }
 
-// 2. Вкладка Симулятора рынка
 class SimulatorScreen extends StatelessWidget {
   final bool isProMode;
   const SimulatorScreen({super.key, required this.isProMode});
@@ -153,14 +151,12 @@ class SimulatorScreen extends StatelessWidget {
   }
 }
 
-// 3. Вкладка Портфеля (интегрирован калькулятор облигаций)
 class PortfolioScreen extends StatelessWidget {
   final double balance;
   const PortfolioScreen({super.key, required this.balance});
 
   @override
   Widget build(BuildContext context) {
-    // Пример расчета для ОФЗ 26238 через наш BondCalculator
     double nkd = BondCalculator.calculateNKD(nominal: 1000, couponRate: 7.0, lastCouponDate: DateTime(2026, 09, 15), settlementDate: DateTime.now());
     double ytm = BondCalculator.calculateYTM(currentPrice: 850, nominal: 1000, couponRate: 7.0, yearsToMaturity: 5.0);
 
@@ -195,7 +191,6 @@ class PortfolioScreen extends StatelessWidget {
   }
 }
 
-// 4. Вкладка Новостей и ИИ-анализа рисков
 class NewsAiScreen extends StatefulWidget {
   const NewsAiScreen({super.key});
 
@@ -252,6 +247,7 @@ class _NewsAiScreenState extends State<NewsAiScreen> {
     );
   }
 }
+
 
 
 
