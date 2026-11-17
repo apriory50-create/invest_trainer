@@ -15,7 +15,7 @@ class _AcademyScreenState extends State<AcademyScreen> {
   @override
   Widget build(BuildContext context) {
     final isPro = widget.state.isProMode;
-    // Объединяем обе части уроков вместе
+    // Объединяем обе части уроков (1-60 и 61-100)
     final allLessons = [...academyLessonsPart1, ...academyLessonsPart2];
 
     return Scaffold(
@@ -112,4 +112,5 @@ class _AcademyScreenState extends State<AcademyScreen> {
     );
   }
 }
+
 
