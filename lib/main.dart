@@ -4,7 +4,6 @@ import 'academy_screen.dart';
 import 'simulator_screen.dart';
 import 'portfolio_screen.dart';
 import 'radar_screen.dart';
-import 'news_ai_screen.dart'; // если подключен, либо заменим на стандартный
 
 void main() {
   runApp(const InvestTrainerApp());
@@ -44,7 +43,7 @@ class _MainContainerState extends State<MainContainer> {
       AcademyScreen(state: _appState),
       SimulatorScreen(state: _appState),
       PortfolioScreen(state: _appState),
-      const RadarScreen(),
+      RadarScreen(state: _appState),
     ];
 
     return Scaffold(
@@ -93,6 +92,7 @@ class _MainContainerState extends State<MainContainer> {
     );
   }
 }
+
 
 
 
