@@ -1,33 +1,16 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
-  static const String _keyCompletedLessons = 'completed_lessons';
-  static const String _keyPortfolioBalance = 'portfolio_balance';
-  static const String _keyUserXp = 'user_xp';
+  static const String _keyAppStateJson = 'invest_trainer_full_state_v2';
 
-  // Сохранение пройденных уроков
-  static Future<void> saveCompletedLessons(List<int> lessonIds) async {
+  static Future<void> saveFullStateJson(String jsonStr) async {
     final prefs = await SharedPreferences.getInstance();
-    final listStr = lessonIds.map((id) => id.toString()).toList();
-    await prefs.setStringList(_keyCompletedLessons, listStr);
+    await prefs.setString(_keyAppStateJson, jsonStr);
   }
 
-  // Загрузка пройденных уроков
-  static Future<List<int>> loadCompletedLessons() async {
+  static Future<String?> loadFullStateJson() async {
     final prefs = await SharedPreferences.getInstance();
-    final listStr = prefs.getStringList(_keyCompletedLessons) ?? [];
-    return listStr.map((id) => int.parse(id)).toList();
-  }
-
-  // Сохранение баланса
-  static Future<void> saveBalance(double balance) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_keyPortfolioBalance, balance);
-  }
-
-  // Загрузка баланса (по умолчанию 100,000 руб)
-  static Future<double> loadBalance() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_keyPortfolioBalance) ?? 100000.0;
+    return prefs.getString(_keyAppStateJson);
   }
 }
+
