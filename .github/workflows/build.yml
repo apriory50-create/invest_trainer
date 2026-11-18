@@ -24,9 +24,16 @@ jobs:
           cp -r lib lib_bak
           cp pubspec.yaml pubspec.bak
           flutter create --project-name invest_trainer --org com.invest.trainer .
+          rm -f test/widget_test.dart
+          rm -f lib/lessons_data.dart
+          rm -f lib/widgets/portfolio_stress_test.dart
           cp -r lib_bak/* lib/
           cp pubspec.bak pubspec.yaml
+          if ! grep -q "android.permission.INTERNET" android/app/src/main/AndroidManifest.xml; then
+            sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
+          fi
           flutter pub get
+          flutter analyze --no-fatal-infos --no-fatal-warnings
           flutter build apk --debug
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
@@ -49,6 +56,9 @@ jobs:
           cp pubspec.yaml pubspec.bak
           flutter config --enable-windows-desktop
           flutter create --project-name invest_trainer .
+          rm -f test/widget_test.dart
+          rm -f lib/lessons_data.dart
+          rm -f lib/widgets/portfolio_stress_test.dart
           cp -r lib_bak/* lib/
           cp pubspec.bak pubspec.yaml
           flutter pub get
@@ -58,6 +68,7 @@ jobs:
         with:
           name: InvestTrainer-Windows-EXE
           path: build/windows/x64/runner/Release/
+
 
 
 
