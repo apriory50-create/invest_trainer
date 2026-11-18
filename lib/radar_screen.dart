@@ -12,12 +12,14 @@ class RadarScreen extends StatefulWidget {
 
 class _RadarScreenState extends State<RadarScreen> {
   final _newsCtrl = TextEditingController(
-    text: 'ЦБ повысил ключевую ставку, а совет директоров Сбербанка рекомендовал рекордные дивиденды',
+    text:
+        'ЦБ повысил ключевую ставку, а совет директоров Сбербанка рекомендовал рекордные дивиденды',
   );
   final _tgTokenCtrl = TextEditingController();
   final _tgChatCtrl = TextEditingController();
   final _jsonBackupCtrl = TextEditingController();
-  String _analysisResult = 'Нажмите «Просветить новость рентгеном», чтобы увидеть влияние на ваш портфель.';
+  String _analysisResult =
+      'Нажмите «Просветить новость рентгеном», чтобы увидеть влияние на ваш реальный портфель.';
   String _backupStatus = '';
 
   @override
@@ -31,37 +33,87 @@ class _RadarScreenState extends State<RadarScreen> {
 
   void _analyzeNews() {
     final text = _newsCtrl.text.toLowerCase();
-    final List<String> findings = [];
+    final findings = <String>[];
     final portfolio = widget.state.portfolio;
 
     final bonds = portfolio.where((a) => a.type == 'bond').toList();
     final etfs = portfolio.where((a) => a.type == 'etf').toList();
+    final stocks = portfolio.where((a) => a.type == 'stock').toList();
 
-    if (text.contains('ставк') || text.contains('цб') || text.contains('инфляц')) {
-      final bondHint = bonds.isNotEmpty
-          ? 'В вашем портфеле есть ${bonds.map((b) => b.ticker).join(', ')} — риск просадки тела при росте ставки.'
-          : 'Длинные ОФЗ сейчас под давлением.';
-      final etfHint = etfs.isNotEmpty
-          ? 'Фонды (${etfs.map((e) => e.ticker).join(', ')}) в плюсе от высокой ставки.'
-          : '';
-      findings.add('🔴 Триггер ДКП (Ставка ЦБ): $bondHint $etfHint'.trim());
+    final hasRateWord = text.contains('ставк') ||
+        text.contains('цб') ||
+        text.contains('инфляц') ||
+        text.contains('ключев');
+
+    if (hasRateWord) {
+      final isCut = text.contains('сниз') ||
+          text.contains('смягч') ||
+          text.contains('пониз') ||
+          text.contains('замедл');
+      final bondNames = bonds.isEmpty
+          ? 'облигаций в портфеле нет'
+          : bonds
+              .map((b) => '${b.ticker} (дюрация ${b.duration})')
+              .join(', ');
+      final etfNames =
+          etfs.isEmpty ? '' : ' Фонды в портфеле: ${etfs.map((e) => e.ticker).join(', ')}.';
+
+      if (isCut) {
+        findings.add(
+          '🟢 Смягчение ДКП / Снижение ставки ЦБ: Позитив для тела облигаций с фиксированным купоном ($bondNames) и рынка акций.',
+        );
+      } else {
+        findings.add(
+          '🔴 Ужесточение ДКП / Рост ставки ЦБ: Давление на цену длинных облигаций с постоянным купоном ($bondNames). Защиту дают флоатеры и фонды ликвидности.$etfNames',
+        );
+      }
     }
 
-    if (text.contains('дивиденд') || text.contains('сбер') || text.contains('лукойл')) {
-      final hasSber = portfolio.any((a) => a.ticker == 'SBER');
+    if (text.contains('дивиденд')) {
+      final isCanceled = text.contains('отказ') ||
+          text.contains('не выплат') ||
+          text.contains('отмен') ||
+          text.contains('пропуск');
+
+      final matchedStocks = stocks.where((s) {
+        final t = s.ticker.toLowerCase();
+        final n = s.name.toLowerCase();
+        return text.contains(t) ||
+            text.contains(n) ||
+            (s.ticker == 'SBER' && text.contains('сбер')) ||
+            (s.ticker == 'LKOH' && text.contains('лукойл')) ||
+            (s.ticker == 'GAZP' && text.contains('газпром'));
+      }).toList();
+
+      final targetLabel = matchedStocks.isNotEmpty
+          ? matchedStocks.map((s) => s.ticker).join(', ')
+          : (stocks.isNotEmpty
+              ? stocks.map((s) => s.ticker).join(', ')
+              : 'акций в портфеле');
+
+      if (isCanceled) {
+        findings.add(
+          '🔴 Негатив по дивидендам ($targetLabel): Отказ или отмена выплат обычно вызывает коррекцию котировок.',
+        );
+      } else {
+        findings.add(
+          '🟢 Дивидендный позитив ($targetLabel): Поддержка котировок, но учитывайте удержание НДФЛ и будущий дивидендный гэп утром в дату отсечки.',
+        );
+      }
+    }
+
+    if (text.contains('оферт') ||
+        text.contains('дефолт') ||
+        text.contains('допэмисс')) {
       findings.add(
-        hasSber
-            ? '🟢 Триггер Дивидендов: Позитив для SBER в вашем портфеле. Учтите налог 13% и дивгэп в дату отсечки.'
-            : '🟢 Триггер Дивидендов: Позитив для дивидендных фишек, но учтите налог 13% и утренний дивгэп.',
+        '⚠️ Корпоративный риск: Проверьте условия пут-оферты по облигациям и риск размытия доли (FPO) по акциям!',
       );
     }
 
-    if (text.contains('оферт') || text.contains('дефолт') || text.contains('допэмисс')) {
-      findings.add('⚠️ Критический риск: Проверьте дату пут-оферты, ковенанты и риск размытия доли!');
-    }
-
     if (findings.isEmpty) {
-      findings.add('🟡 Нейтральный шум: Прямых фундаментальных триггеров для бумаг вашего портфеля не обнаружено.');
+      findings.add(
+        '🟡 Нейтральный фон: Прямых триггеров для текущих бумаг вашего портфеля (${widget.state.portfolioTickers.join(", ")}) не обнаружено.',
+      );
     }
 
     setState(() {
@@ -81,7 +133,7 @@ class _RadarScreenState extends State<RadarScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '📡 Двухуровневый Инфо-Радар (Офлайн-словарь + ИИ-фильтр)',
+                  '📡 Инфо-Радар портфеля',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
@@ -89,7 +141,7 @@ class _RadarScreenState extends State<RadarScreen> {
                   controller: _newsCtrl,
                   maxLines: 3,
                   decoration: const InputDecoration(
-                    labelText: 'Вставьте текст новости из Telegram / СМИ',
+                    labelText: 'Вставьте текст новости из СМИ / Telegram',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -113,7 +165,7 @@ class _RadarScreenState extends State<RadarScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '☁️ Бэкап базы данных (JSON-файл и Telegram Bot API)',
+                  '☁️ Бэкап базы данных (JSON и отправка файлом в Telegram)',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
@@ -125,7 +177,8 @@ class _RadarScreenState extends State<RadarScreen> {
                           final jsonStr = widget.state.exportBackupJson();
                           _jsonBackupCtrl.text = jsonStr;
                           Clipboard.setData(ClipboardData(text: jsonStr));
-                          setState(() => _backupStatus = 'JSON скопирован в буфер обмена!');
+                          setState(() => _backupStatus =
+                              'JSON скопирован в буфер обмена!');
                         },
                         child: const Text('Экспорт JSON'),
                       ),
@@ -134,8 +187,11 @@ class _RadarScreenState extends State<RadarScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          final ok = widget.state.importBackupJson(_jsonBackupCtrl.text);
-                          setState(() => _backupStatus = ok ? 'Данные успешно восстановлены!' : 'Ошибка формата JSON');
+                          final ok = widget.state
+                              .importBackupJson(_jsonBackupCtrl.text);
+                          setState(() => _backupStatus = ok
+                              ? 'Данные успешно восстановлены!'
+                              : 'Ошибка формата JSON (старые данные сохранены)');
                         },
                         child: const Text('Импорт JSON'),
                       ),
@@ -154,11 +210,15 @@ class _RadarScreenState extends State<RadarScreen> {
                 const Divider(height: 20),
                 TextField(
                   controller: _tgTokenCtrl,
-                  decoration: const InputDecoration(labelText: 'Telegram Bot Token (необязательно)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Telegram Bot Token',
+                  ),
                 ),
                 TextField(
                   controller: _tgChatCtrl,
-                  decoration: const InputDecoration(labelText: 'Ваш Telegram Chat ID'),
+                  decoration: const InputDecoration(
+                    labelText: 'Ваш Telegram Chat ID',
+                  ),
                 ),
                 const SizedBox(height: 8),
                 ElevatedButton.icon(
@@ -167,18 +227,18 @@ class _RadarScreenState extends State<RadarScreen> {
                       _tgTokenCtrl.text.trim(),
                       _tgChatCtrl.text.trim(),
                     );
-                    if (!mounted) return;
                     setState(() => _backupStatus = msg);
                   },
                   icon: const Icon(Icons.send),
-                  label: const Text('Отправить бэкап в Telegram'),
+                  label: const Text('Отправить файл бэкапа в Telegram'),
                 ),
                 if (_backupStatus.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       _backupStatus,
-                      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          color: Colors.green, fontWeight: FontWeight.bold),
                     ),
                   ),
               ],
@@ -189,5 +249,3 @@ class _RadarScreenState extends State<RadarScreen> {
     );
   }
 }
-
-
