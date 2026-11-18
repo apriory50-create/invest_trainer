@@ -1,49 +1,69 @@
-// lib/services/news_filter_service.dart
 import '../models/news_item.dart';
 
 class NewsFilterService {
-  // Фильтрация новостей по тикерам, присутствующим в портфеле пользователя
-  static List<NewsItem> getNewsForPortfolio(List<NewsItem> allNews, List<String> portfolioTickers) {
-    if (portfolioTickers.isEmpty) return [];
-    
-    return allNews.where((news) {
-      // Проверяем, есть ли пересечение между затронутыми в новости тикерами и портфелем
-      return news.affectedTickers.any((ticker) => portfolioTickers.contains(ticker));
-    }).toList();
+  static bool _matchesPortfolio(
+    List<String> newsTickers,
+    List<String> portfolioTickers,
+  ) {
+    final normPortfolio =
+        portfolioTickers.map((t) => t.trim().toUpperCase()).toSet();
+    final hasOfzInPortfolio =
+        normPortfolio.any((t) => t.startsWith('SU') || t.startsWith('OFZ'));
+
+    for (final rawNewsTicker in newsTickers) {
+      final nt = rawNewsTicker.trim().toUpperCase();
+      if (normPortfolio.contains(nt)) return true;
+      if ((nt == 'OFZ' || nt.startsWith('SU')) && hasOfzInPortfolio) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  // Генератор случайной рыночной новости дня для симулятора
+  static List<NewsItem> getNewsForPortfolio(
+    List<NewsItem> allNews,
+    List<String> portfolioTickers,
+  ) {
+    if (portfolioTickers.isEmpty) return [];
+    return allNews
+        .where((news) => _matchesPortfolio(news.affectedTickers, portfolioTickers))
+        .toList();
+  }
+
   static NewsItem generateRandomMarketNews() {
     final randomEvents = [
       NewsItem(
-        id: 'rand_1',
-        title: 'Неожиданный рост инфляции: ЦБ рассматривает жесткое решение',
-        summary: 'Инфляционные ожидания населения и бизнеса выросли по итогам месяца.',
-        content: 'Аналитики прогнозируют возможное повышение ключевой ставки на ближайшем заседании, что создает давление на рынок облигаций и акции роста.',
+        id: 'rand_${DateTime.now().millisecondsSinceEpoch}_1',
+        title: 'Ускорение недельной инфляции: рынок ждет жесткого сигнала ЦБ',
+        summary: 'Инфляционные ожидания выросли по итогам месяца.',
+        content:
+            'Учебный сценарий: Аналитики допускают повышение ключевой ставки на ближайшем заседании, что создает давление на длинные ОФЗ с постоянным купоном.',
         date: DateTime.now(),
-        affectedTickers: ['OFZ', 'SBER', 'VTBR'],
+        affectedTickers: ['OFZ', 'SU26238', 'SBER', 'VTBR'],
         sentiment: 'negative',
-        source: 'Рыночный радар / Инсайдер',
+        source: 'Демо-генератор событий',
       ),
       NewsItem(
-        id: 'rand_2',
-        title: 'Крупнейшие экспортеры объявили рекордные дивидендные выплаты',
-        summary: 'Советы директоров рекомендовали выплатить акционерам до 75% от чистой прибыли.',
-        content: 'Позитивные новости вызвали ралли в сырьевом секторе. Инвесторы массово перекладывают средства в дивидендные бумаги.',
+        id: 'rand_${DateTime.now().millisecondsSinceEpoch}_2',
+        title: 'Экспортеры рекомендовали крупные промежуточные дивиденды',
+        summary: 'Советы директоров направили свободный денежный поток на выплаты.',
+        content:
+            'Учебный сценарий: Рекомендация щедрых дивидендов вызвала приток покупателей в бумаги нефтегазового сектора.',
         date: DateTime.now(),
         affectedTickers: ['GAZP', 'LKOH', 'ROSN'],
         sentiment: 'positive',
-        source: 'MOEX Info',
+        source: 'Демо-генератор событий',
       ),
       NewsItem(
-        id: 'rand_3',
-        title: 'Технологический сектор показывает опережающие темпы роста выручки',
-        summary: 'Импортозамещение ПО и облачных сервисов приносит свои плоды.',
-        content: 'ИТ-компании отчитываются о двузначном росте финансовых показателей, привлекая внимание частных инвесторов.',
+        id: 'rand_${DateTime.now().millisecondsSinceEpoch}_3',
+        title: 'IT-сектор отчитался о двузначном росте выручки за квартал',
+        summary: 'Спрос на облачные сервисы и кибербезопасность продолжает расти.',
+        content:
+            'Учебный сценарий: Российские технологические компании показывают высокие темпы роста выручки на фоне корпоративного импортозамещения.',
         date: DateTime.now(),
-        affectedTickers: ['OZON', 'YNDX', 'POSITI'],
+        affectedTickers: ['OZON', 'YDEX', 'POSI'],
         sentiment: 'positive',
-        source: 'ТехноРынок',
+        source: 'Демо-генератор событий',
       ),
     ];
 
@@ -51,3 +71,4 @@ class NewsFilterService {
     return randomEvents.first;
   }
 }
+
