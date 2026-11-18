@@ -1,14 +1,13 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'services/storage_service.dart';
 
 class MistakeItem {
   final String date;
   final String asset;
   final String error;
   final double loss;
-
   MistakeItem(this.date, this.asset, this.error, this.loss);
 
   Map<String, dynamic> toJson() => {
@@ -71,16 +70,19 @@ class AssetItem {
 }
 
 class AppState extends ChangeNotifier {
-  static const String _storageKey = 'invest_trainer_state_v1';
-
   bool isProMode = false;
   int themeIndex = 0;
   double cbRate = 21.0;
   double virtualBalance = 100000.0;
-  List<String> completedLessons = [];
+  List<int> completedLessons = [];
 
   List<MistakeItem> mistakeDiary = [
-    MistakeItem('15.11.2026', 'Газпром', 'Покупка под дивиденды без учёта дивгэпа и налога 13%', -4200.0),
+    MistakeItem(
+      '15.11.2026',
+      'Газпром',
+      'Покупка под дивиденды без учёта дивгэпа и налога НДФЛ',
+      -4200.0,
+    ),
   ];
 
   List<AssetItem> portfolio = [
@@ -90,77 +92,80 @@ class AppState extends ChangeNotifier {
   ];
 
   AppState() {
-    loadFromDisk();
+    _initFromStorage();
   }
 
-  Future<void> loadFromDisk() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_storageKey);
-      if (saved != null && saved.isNotEmpty) {
-        importBackupJson(saved, saveAfter: false);
-      }
-    } catch (_) {}
+  List<String> get portfolioTickers =>
+      portfolio.map((e) => e.ticker.toUpperCase()).toSet().toList();
+
+  Future<void> _initFromStorage() async {
+    final saved = await StorageService.loadFullStateJson();
+    if (saved != null && saved.isNotEmpty) {
+      importBackupJson(saved, saveAfter: false);
+    }
   }
 
-  Future<void> _saveToDisk() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_storageKey, exportBackupJson());
-    } catch (_) {}
+  void _persist() {
+    StorageService.saveFullStateJson(exportBackupJson());
   }
 
   void toggleProMode() {
     isProMode = !isProMode;
+    _persist();
     notifyListeners();
-    _saveToDisk();
   }
 
   void cycleTheme() {
     themeIndex = (themeIndex + 1) % 3;
+    _persist();
     notifyListeners();
-    _saveToDisk();
   }
 
   void updateCbRate(double val) {
     cbRate = val;
+    _persist();
     notifyListeners();
-    _saveToDisk();
   }
 
   void updateBalance(double newBalance) {
     virtualBalance = newBalance;
+    _persist();
     notifyListeners();
-    _saveToDisk();
   }
 
   void addMistake(String asset, String error, double loss) {
-    mistakeDiary.insert(0, MistakeItem('Сегодня', asset, error, loss));
+    final now = DateTime.now();
+    final dateStr =
+        '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year}';
+    mistakeDiary.insert(0, MistakeItem(dateStr, asset, error, loss));
+    _persist();
     notifyListeners();
-    _saveToDisk();
   }
 
-  void addAsset(String ticker, String name, String type, int qty, double price, double dur) {
+  void addAsset(
+    String ticker,
+    String name,
+    String type,
+    int qty,
+    double price,
+    double dur,
+  ) {
     portfolio.add(AssetItem(ticker, name, type, qty, price, price, dur, 15.0));
+    _persist();
     notifyListeners();
-    _saveToDisk();
   }
 
-  void completeLesson(String id) {
+  void completeLesson(int id) {
     if (!completedLessons.contains(id)) {
       completedLessons.add(id);
+      _persist();
       notifyListeners();
-      _saveToDisk();
     }
   }
-
-  List<String> get portfolioTickers =>
-      portfolio.map((e) => e.ticker).toSet().toList();
 
   String exportBackupJson() {
     return jsonEncode({
       'isProMode': isProMode,
-      'themeIndex': themeIndex,
       'virtualBalance': virtualBalance,
       'cbRate': cbRate,
       'completedLessons': completedLessons,
@@ -171,24 +176,38 @@ class AppState extends ChangeNotifier {
 
   bool importBackupJson(String jsonStr, {bool saveAfter = true}) {
     try {
-      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-      isProMode = data['isProMode'] ?? false;
-      themeIndex = ((data['themeIndex'] ?? 0) as num).toInt();
-      virtualBalance = ((data['virtualBalance'] ?? 100000.0) as num).toDouble();
-      cbRate = ((data['cbRate'] ?? 21.0) as num).toDouble();
-      completedLessons = (data['completedLessons'] as List? ?? [])
-          .map((e) => e.toString())
-          .toList();
-      mistakeDiary = (data['mistakeDiary'] as List? ?? [])
+      final data = jsonDecode(jsonStr);
+      if (data is! Map) return false;
+
+      final newPro = data['isProMode'] == true;
+      final newBal = ((data['virtualBalance'] ?? 100000.0) as num).toDouble();
+      final newCb = ((data['cbRate'] ?? 21.0) as num).toDouble();
+
+      final rawLessons = data['completedLessons'] as List? ?? [];
+      final newLessons = <int>[];
+      for (var item in rawLessons) {
+        final parsed = int.tryParse(item.toString());
+        if (parsed != null && !newLessons.contains(parsed)) {
+          newLessons.add(parsed);
+        }
+      }
+
+      final newMistakes = (data['mistakeDiary'] as List? ?? [])
           .map((e) => MistakeItem.fromJson(e))
           .toList();
-      portfolio = (data['portfolio'] as List? ?? [])
+      final newPortfolio = (data['portfolio'] as List? ?? [])
           .map((e) => AssetItem.fromJson(e))
           .toList();
+
+      isProMode = newPro;
+      virtualBalance = newBal;
+      cbRate = newCb;
+      completedLessons = newLessons;
+      mistakeDiary = newMistakes;
+      portfolio = newPortfolio;
+
+      if (saveAfter) _persist();
       notifyListeners();
-      if (saveAfter) {
-        _saveToDisk();
-      }
       return true;
     } catch (_) {
       return false;
@@ -196,27 +215,33 @@ class AppState extends ChangeNotifier {
   }
 
   Future<String> sendTelegramBackup(String botToken, String chatId) async {
-    if (botToken.trim().isEmpty || chatId.trim().isEmpty) {
-      return 'Введите токен и Chat ID';
+    if (botToken.isEmpty || chatId.isEmpty) {
+      return 'Введите Bot Token и ваш Chat ID';
     }
-    final client = HttpClient();
     try {
-      final uri = Uri.parse('https://api.telegram.org/bot${botToken.trim()}/sendMessage');
-      final req = await client.postUrl(uri);
-      req.headers.set('content-type', 'application/json; charset=utf-8');
-      req.write(jsonEncode({
-        'chat_id': chatId.trim(),
-        'text': '📦 БЭКАП ИНВЕСТ-ТРЕНАЖЕРА:\n${exportBackupJson()}',
-      }));
-      final res = await req.close();
-      return res.statusCode == 200
-          ? 'Успешно отправлено в Telegram!'
-          : 'Ошибка API: код ${res.statusCode}';
+      final uri =
+          Uri.parse('https://api.telegram.org/bot$botToken/sendDocument');
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['chat_id'] = chatId
+        ..fields['caption'] =
+            '📦 Резервная копия Invest Trainer (Баланс: ${virtualBalance.toStringAsFixed(0)} ₽, Уроков: ${completedLessons.length}/100)'
+        ..files.add(
+          http.MultipartFile.fromString(
+            'document',
+            exportBackupJson(),
+            filename: 'invest_trainer_backup.json',
+          ),
+        );
+
+      final streamedRes =
+          await request.send().timeout(const Duration(seconds: 12));
+      return streamedRes.statusCode == 200
+          ? 'Файл бэкапа успешно отправлен в Telegram!'
+          : 'Ошибка Telegram API: код ${streamedRes.statusCode}';
     } catch (e) {
       return 'Офлайн-режим: скопируйте JSON вручную';
-    } finally {
-      client.close();
     }
   }
 }
+
 
