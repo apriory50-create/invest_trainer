@@ -7,6 +7,7 @@ import 'radar_screen.dart';
 import 'screens/news_ai_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const InvestTrainerApp());
 }
 
@@ -38,90 +39,44 @@ class _MainContainerState extends State<MainContainer> {
   final AppState _appState = AppState();
   int _currentIndex = 0;
 
-  void _showHowToUseDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('📖 Как пользоваться приложением'),
-        content: const SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '1. 🎓 Академия (100 уроков)',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Нажмите на любой урок, прочитайте правило, ответьте на мини-вопрос и нажмите зелёную кнопку «Завершить урок». Звёздочка ⭐ вверху переключает язык между «Новичком» и «Профи».',
-              ),
-              SizedBox(height: 10),
-              Text(
-                '2. 📈 Симулятор рынка',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Выберите кризис (2008, 2020 или ставку 21%), нажимайте «Шаг +1 день» или «Таймлапс». Покупайте и продавайте виртуальные лоты — тренируйтесь без риска потерять реальные деньги.',
-              ),
-              SizedBox(height: 10),
-              Text(
-                '3. 💼 Портфель и Стресс-тест',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Добавляйте свои акции и ОФЗ. Двигайте ползунок «Ставка ЦБ», чтобы увидеть, как изменится цена портфеля, и используйте расчёт ребалансировки при пополнении.',
-              ),
-              SizedBox(height: 10),
-              Text(
-                '4. 📡 Радар и 🧠 ИИ Новости',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'В «Радаре» вставьте любую новость из Telegram — приложение покажет её влияние на ваши бумаги. В «ИИ Новостях» фильтруйте события по портфелю.',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Понятно, поехали!'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: _appState,
       builder: (context, _) {
-        final List<Widget> pages = [
+        final pages = [
           AcademyScreen(state: _appState),
           SimulatorScreen(state: _appState),
           PortfolioScreen(state: _appState),
           RadarScreen(state: _appState),
-          NewsAiScreen(portfolioTickers: _appState.portfolioTickers),
+          NewsAiScreen(
+            portfolioTickers: _appState.portfolioTickers,
+          ),
         ];
 
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Colors.blue.shade100,
-            title: const Text('Invest Trainer 🚀'),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Invest Trainer 🚀',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Счёт: ${_appState.virtualBalance.toStringAsFixed(0)} ₽ • Уроков: ${_appState.completedLessons.length}/100',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.help_outline),
-                tooltip: 'Как пользоваться',
-                onPressed: _showHowToUseDialog,
+              FilterChip(
+                label: Text(_appState.isProMode ? 'ПРОФИ' : 'НОВИЧОК'),
+                selected: _appState.isProMode,
+                onSelected: (_) => _appState.toggleProMode(),
               ),
-              IconButton(
-                icon: Icon(_appState.isProMode ? Icons.star : Icons.star_border),
-                tooltip: _appState.isProMode ? 'Режим Профи (вкл)' : 'Режим Новичка',
-                onPressed: () {
-                  _appState.toggleProMode();
-                },
-              ),
+              const SizedBox(width: 8),
             ],
           ),
           body: IndexedStack(
